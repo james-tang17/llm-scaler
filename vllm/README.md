@@ -1,6 +1,6 @@
-# vLLM-based Downstream Serving Image
+# llm-scaler-vllm
 
-Our project focuses on downstream applications built on vLLM, providing a Docker image with features tailored to internal customers' needs as well as support for advanced features.
+llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapted for Intel’s Multi-BMG platform. This project enhances vLLM’s core architecture with Intel-specific performance optimizations, advanced features, and tailored support for customer use cases.
 
 ---
 
