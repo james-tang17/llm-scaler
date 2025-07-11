@@ -23,9 +23,9 @@
 ########################################
 ##### Do Update the Proxy settings #####
 ########################################
-export https_proxy=http://child-prc.intel.com:913
-export http_proxy=http://child-prc.intel.com:913
-export no_proxy=127.0.0.1,*.intel.com
+export https_proxy=http://your-proxy.com:port
+export http_proxy=http://your-proxy.com:port
+export no_proxy=127.0.0.1
  
 ##########################################################
 ##### Below server is for internal to maintain tools #####

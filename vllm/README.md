@@ -36,8 +36,8 @@ First, install a standard Ubuntu 25.04
 Then, update the proxy configuration in [native_bkc_setup.sh](https://github.com/intel/llm-scaler/blob/main/vllm/tools/native_bkc_setup.sh). 
 
 ```bash
-export https_proxy=http://child-prc.intel.com:913
-export http_proxy=http://child-prc.intel.com:913
+export https_proxy=http://your-proxy.com:port
+export http_proxy=http://your-proxy.com:port
 export no_proxy=127.0.0.1,*.intel.com
 ````
 Make sure your system has internet access and also the proxy can access [Ubuntu intel-graphics PPA](https://launchpad.net/~kobuk-team/+archive/ubuntu/intel-graphics) since native_bkc_setup.sh will get packages from there.
