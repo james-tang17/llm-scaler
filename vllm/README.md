@@ -28,7 +28,10 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 ### 1.1 Install Native Environment
 
 #### 1.1.1 Execute the Script
-First, install a standard [Ubuntu 25.04 Desktop](https://releases.ubuntu.com/25.04/ubuntu-25.04-desktop-amd64.iso) (for Xeon-W) or [Ubuntu 25.04 Server](https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso) (for Xeon-SP).
+
+First, install a standard Ubuntu 25.04
+- [Ubuntu 25.04 Desktop](https://releases.ubuntu.com/25.04/ubuntu-25.04-desktop-amd64.iso) (for Xeon-W)
+- [Ubuntu 25.04 Server](https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso) (for Xeon-SP).
 
 Then, update the proxy configuration in [native_bkc_setup.sh](https://github.com/intel/llm-scaler/blob/main/vllm/tools/native_bkc_setup.sh). 
 
