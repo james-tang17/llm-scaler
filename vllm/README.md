@@ -7,9 +7,10 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 ## Table of Contents
 
 1. [Getting Started and Usage](#1-getting-started-and-usage)  
-   1.1 [Pulling and Running the Docker Container](#11-pulling-and-running-the-docker-container)  
-   1.2 [Launching the Serving Service](#12-launching-the-serving-service)  
-   1.3 [Benchmarking the Service](#13-benchmarking-the-service)  
+   1.1 [Install Native Environment](#11-install-native-environment)
+   1.2 [Pulling and Running the Docker Container](#11-pulling-and-running-the-docker-container)  
+   1.3 [Launching the Serving Service](#12-launching-the-serving-service)  
+   1.4 [Benchmarking the Service](#13-benchmarking-the-service)  
 2. [Advanced Features](#2-advanced-features)  
    2.1 [CCL Support (both P2P & USM)](#21-ccl-support-both-p2p--usm)  
    2.2 [INT4 and FP8 Quantized Online Serving](#22-int4-and-fp8-quantized-online-serving)  
@@ -24,7 +25,121 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 
 ## 1. Getting Started and Usage
 
-### 1.1 Pulling and Running the Docker Container
+### 1.1 Install Native Environment
+
+#### 1.1.1 Execute the Script
+First, install a standard Ubuntu 25.04 Desktop(#https://releases.ubuntu.com/25.04/ubuntu-25.04-desktop-amd64.iso) (for Xeon-W) or Server (#https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso) (for Xeon-SP).
+
+Then, update the proxy configuration in native_bkc_setup.sh(#https://github.com/intel/llm-scaler/blob/main/vllm/tools/native_bkc_setup.sh). 
+
+```bash
+export https_proxy=http://child-prc.intel.com:913
+export http_proxy=http://child-prc.intel.com:913
+export no_proxy=127.0.0.1,*.intel.com
+````
+Make sure your system has internet access and also the proxy can access Ubuntu intel-graphics PPA(#https://launchpad.net/~kobuk-team/+archive/ubuntu/intel-graphics) since native_bkc_setup.sh will get packages from there.
+
+Switch to root user, run this script.
+
+```bash
+sudo su -
+cd vllm/tools/
+chmod +x native_bkc_setup.sh
+./native_bkc_setup.sh
+```` 
+
+If everything is ok, you can see below installation completion message. Depending on your network speed, the execution may require 30 mins or longer time. 
+
+```bash
+Tools and scripts are located at /root/multi-arc.
+✅ [DONE] Environment setup complete. Please reboot your system to apply changes.
+````
+
+#### 1.1.2 Check the Installation
+
+Since it update the GPU firmware and initramfs, you need to reboot to make the changes taking effect. 
+
+After reboot, you can use lscpi and sycl-ls to check if all the drivers are installed correctly.
+
+For Intel B60 GPU, it's device ID is e211, you can grep this ID in lspci to make sure the KMD (kernel mode driver) workable. 
+
+```bash
+root@edgeaihost19:~# lspci -tv | grep -i e211
+ |           \-01.0-[17-1a]----00.0-[18-1a]--+-01.0-[19]----00.0  Intel Corporation Device e211
+ |           \-05.0-[4e-51]----00.0-[4f-51]--+-01.0-[50]----00.0  Intel Corporation Device e211
+ |           \-01.0-[85-88]----00.0-[86-88]--+-01.0-[87]----00.0  Intel Corporation Device e211
+ |           \-01.0-[bc-bf]----00.0-[bd-bf]--+-01.0-[be]----00.0  Intel Corporation Device e211
+````
+
+If you also see e211 device recognized by sycl-ls, then GPGPU UMD (user mode driver) working properly.
+
+```bash
+root@edgeaihost19:~# source /opt/intel/oneapi/setvars.sh
+
+:: initializing oneAPI environment ...
+   -bash: BASH_VERSION = 5.2.37(1)-release
+:: advisor -- latest
+:: ccl -- latest
+:: compiler -- latest
+:: dal -- latest
+:: debugger -- latest
+:: dev-utilities -- latest
+:: dnnl -- latest
+:: dpcpp-ct -- latest
+:: dpl -- latest
+:: ipp -- latest
+:: ippcp -- latest
+:: mkl -- latest
+:: mpi -- latest
+:: pti -- latest
+:: tbb -- latest
+:: umf -- latest
+:: vtune -- latest
+:: oneAPI environment initialized ::
+
+root@edgeaihost19:~# sycl-ls
+[level_zero:gpu][level_zero:0] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) Graphics [0xe211] 20.1.0 [1.6.33944+12]
+[level_zero:gpu][level_zero:1] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) Graphics [0xe211] 20.1.0 [1.6.33944+12]
+[level_zero:gpu][level_zero:2] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) Graphics [0xe211] 20.1.0 [1.6.33944+12]
+[level_zero:gpu][level_zero:3] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) Graphics [0xe211] 20.1.0 [1.6.33944+12]
+[opencl:cpu][opencl:0] Intel(R) OpenCL, Intel(R) Xeon(R) w5-2545 OpenCL 3.0 (Build 0) [2025.20.6.0.04_224945]
+[opencl:gpu][opencl:1] Intel(R) OpenCL Graphics, Intel(R) Graphics [0xe211] OpenCL 3.0 NEO  [25.22.33944]
+[opencl:gpu][opencl:2] Intel(R) OpenCL Graphics, Intel(R) Graphics [0xe211] OpenCL 3.0 NEO  [25.22.33944]
+[opencl:gpu][opencl:3] Intel(R) OpenCL Graphics, Intel(R) Graphics [0xe211] OpenCL 3.0 NEO  [25.22.33944]
+[opencl:gpu][opencl:4] Intel(R) OpenCL Graphics, Intel(R) Graphics [0xe211] OpenCL 3.0 NEO  [25.22.33944]
+````
+
+#### 1.1.3 Using Tools
+
+This script installs 2 tools for GPU development: 
+
+- level-zero-tests: GPU P2P & memory bandwidth benchmark
+- xpu-smi: GPU profiling and management
+
+level-zero-tests is located /root/multi-arc/level-zero-tests. It's already built, you can directly run the binary in
+- level-zero-tests/build/perf_tests/ze_peer/ze_peer for P2P benchmark
+- level-zero-tests/build/perf_tests/ze_peak/ze_peak for memory bandwidth benchmark including H2D, D2H, D2D
+
+xpu-smi already installed in system, you can directly run.
+
+```bash
+xpu-smi
+````
+
+Intel also offers 2 other tools which are not publicly available for current Pre-PV release. 
+- 1ccl tool for collective communication benchmark
+- gemm tool for compute capability benchmark
+
+To get these 2 tools or detailed user guide for all tools, please contact your Intel support team for help.
+
+We also provide a script to set the CPU/GPU to performance mode, you can run it before running the workload
+
+```bash 
+cd /root/multi-arc
+./setup_perf.sh
+````
+
+### 1.2 Pulling and Running the Docker Container
 
 First, pull the image:
 
@@ -57,7 +172,7 @@ docker exec -it lsv-container bash
 
 ---
 
-### 1.2 Launching the Serving Service
+### 1.3 Launching the Serving Service
 
 ```bash
 TORCH_LLM_ALLREDUCE=1 \
@@ -86,7 +201,7 @@ python3 -m vllm.entrypoints.openai.api_server \
 
 ---
 
-### 1.3 Benchmarking the Service
+### 1.4 Benchmarking the Service
 
 ```bash
 python3 benchmarks/benchmark_serving.py \
