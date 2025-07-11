@@ -62,7 +62,7 @@ Tools and scripts are located at /root/multi-arc.
 
 Since it update the GPU firmware and initramfs, you need to reboot to make the changes taking effect. 
 
-After reboot, you can use lscpi and sycl-ls to check if all the drivers are installed correctly.
+After reboot, you can use lspci and sycl-ls to check if all the drivers are installed correctly.
 
 For Intel B60 GPU, it's device ID is e211, you can grep this ID in lspci to make sure the KMD (kernel mode driver) workable. 
 
