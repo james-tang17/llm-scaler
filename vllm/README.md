@@ -7,7 +7,7 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 ## Table of Contents
 
 1. [Getting Started and Usage](#1-getting-started-and-usage)  
-   1.1 [Install Native Environment](#11-install-native-environment)
+   1.1 [Install Native Environment](#11-install-native-environment)  
    1.2 [Pulling and Running the Docker Container](#11-pulling-and-running-the-docker-container)  
    1.3 [Launching the Serving Service](#12-launching-the-serving-service)  
    1.4 [Benchmarking the Service](#13-benchmarking-the-service)  
@@ -28,16 +28,16 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 ### 1.1 Install Native Environment
 
 #### 1.1.1 Execute the Script
-First, install a standard Ubuntu 25.04 Desktop(#https://releases.ubuntu.com/25.04/ubuntu-25.04-desktop-amd64.iso) (for Xeon-W) or Server (#https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso) (for Xeon-SP).
+First, install a standard [Ubuntu 25.04 Desktop](https://releases.ubuntu.com/25.04/ubuntu-25.04-desktop-amd64.iso) (for Xeon-W) or [Ubuntu 25.04 Server](https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso) (for Xeon-SP).
 
-Then, update the proxy configuration in native_bkc_setup.sh(#https://github.com/intel/llm-scaler/blob/main/vllm/tools/native_bkc_setup.sh). 
+Then, update the proxy configuration in [native_bkc_setup.sh](https://github.com/intel/llm-scaler/blob/main/vllm/tools/native_bkc_setup.sh). 
 
 ```bash
 export https_proxy=http://child-prc.intel.com:913
 export http_proxy=http://child-prc.intel.com:913
 export no_proxy=127.0.0.1,*.intel.com
 ````
-Make sure your system has internet access and also the proxy can access Ubuntu intel-graphics PPA(#https://launchpad.net/~kobuk-team/+archive/ubuntu/intel-graphics) since native_bkc_setup.sh will get packages from there.
+Make sure your system has internet access and also the proxy can access [Ubuntu intel-graphics PPA](https://launchpad.net/~kobuk-team/+archive/ubuntu/intel-graphics) since native_bkc_setup.sh will get packages from there.
 
 Switch to root user, run this script.
 
