@@ -94,7 +94,7 @@ apt install -y libze1=1.21.9-1~25.04~ppa1
 apt install -y libze-dev=1.21.9-1~25.04~ppa1
 apt install -y libze-intel-gpu1=25.22.33944.12-1~25.04~ppa1
 apt install -y intel-opencl-icd=25.22.33944.12-1~25.04~ppa1
-apt install -y libze-intel-gpu-raytracing=1.1.0-0ubuntu1~25.04~ppa1
+apt install -y libze-intel-gpu-raytracing=1.1.0-0ubuntu1~25.04~ppa3
 
 echo -e "\n[INFO] Installing Thread Building Blocks (TBB)..."
 apt install -y libtbb12=2022.0.0-2
