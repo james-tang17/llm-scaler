@@ -39,6 +39,20 @@ RUN apt-get update -y && \
     apt-get install -y intel-oneapi-dpcpp-ct=2025.0.1-17 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# pin compute runtime version
+RUN mkdir /tmp/neo && \
+    cd /tmp/neo && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.12.5/intel-igc-core-2_2.12.5+19302_amd64.deb && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/v2.12.5/intel-igc-opencl-2_2.12.5+19302_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.22.33944.8/intel-ocloc-dbgsym_25.22.33944.8-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.22.33944.8/intel-ocloc_25.22.33944.8-0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.22.33944.8/intel-opencl-icd-dbgsym_25.22.33944.8-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.22.33944.8/intel-opencl-icd_25.22.33944.8-0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.22.33944.8/libigdgmm12_22.7.0_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.22.33944.8/libze-intel-gpu1-dbgsym_25.22.33944.8-0_amd64.ddeb && \
+    wget https://github.com/intel/compute-runtime/releases/download/25.22.33944.8/libze-intel-gpu1_25.22.33944.8-0_amd64.deb && \
+    dpkg -i *.deb
+
 WORKDIR /llm
 COPY ./patches/vllm_for_multi_arc.patch /tmp/
 COPY ./patches/0001-oneccl-align-global-V0.1.1.patch /tmp/
@@ -50,7 +64,7 @@ ENV VLLM_TARGET_DEVICE=xpu
 ENV VLLM_WORKER_MULTIPROC_METHOD=spawn
 
 # Clone + patch vllm
-RUN git clone -b v0.8.3 https://github.com/vllm-project/vllm.git && \
+RUN git clone -b v0.9.0 https://github.com/vllm-project/vllm.git && \
     cd vllm && \
     git apply /tmp/vllm_for_multi_arc.patch && \
     pip install --no-cache-dir -r requirements/xpu.txt && \
@@ -101,6 +115,10 @@ ARG https_proxy
 
 # install additional dependencies for openai api server
 RUN pip install accelerate hf_transfer 'modelscope!=1.15.0'
+
+# Install required triton version
+RUN pip uninstall pytorch-triton-xpu triton -y && \
+    pip install https://download.pytorch-extension.intel.com/ipex_dev/xpu/triton-3.3.0%2Bgitbd88137b-cp310-cp310-linux_x86_64.whl
 
 # Set additional environment for production usage
 ENV VLLM_USAGE_SOURCE=production-docker-image
