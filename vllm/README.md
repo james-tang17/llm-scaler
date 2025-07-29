@@ -367,14 +367,14 @@ python3 -m vllm.entrypoints.openai.api_server \
     --max-num-batched-tokens=5120 \
     --disable-log-requests \
     --max-model-len=5120 \
-    --block-size 16 \
+    --block-size 64 \
     --quantization fp8 \
     -tp=1
 ```
 
 After starting the vLLM service, you can follow this link to use it
 
-#### [Multimodal input](https://docs.vllm.ai/en/latest/features/multimodal_inputs.html#online-serving)
+#### [Multimodal image input](https://docs.vllm.ai/en/latest/features/multimodal_inputs.html#image-inputs_1)
 
 ```bash
 curl http://localhost:8000/v1/chat/completions \
@@ -400,6 +400,52 @@ curl http://localhost:8000/v1/chat/completions \
     ],
     "max_tokens": 128
   }'
+```
+---
+
+### 2.4.1 Audio Model Support
+
+#### Install audio dependencies
+```bash
+pip install transformers==4.52.4 librosa
+```
+
+#### Start service using V0 engine
+```bash
+TORCH_LLM_ALLREDUCE=1 \
+VLLM_USE_V1=0 \
+CCL_ZE_IPC_EXCHANGE=pidfd \
+VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
+VLLM_WORKER_MULTIPROC_METHOD=spawn \
+python3 -m vllm.entrypoints.openai.api_server \
+    --model /llm/models/whisper-medium \
+    --served-model-name whisper-medium \
+    --allowed-local-media-path /llm/models/test \
+    --dtype=float16 \
+    --device=xpu \
+    --enforce-eager \
+    --port 8000 \
+    --host 0.0.0.0 \
+    --trust-remote-code \
+    --gpu-memory-util=0.9 \
+    --no-enable-prefix-caching \
+    --max-num-batched-tokens=5120 \
+    --disable-log-requests \
+    --max-model-len=5120 \
+    --block-size 16 \
+    --quantization fp8 \
+    -tp=1
+```
+
+After starting the vLLM service, you can follow this link to use it
+
+#### [Multimodal audio input](https://docs.vllm.ai/en/latest/features/multimodal_inputs.html#audio-inputs_1)
+
+```bash
+curl http://localhost:8000/v1/audio/transcriptions \
+-H "Content-Type: multipart/form-data" \
+-F file="@/llm/models/test/output.wav" \
+-F model="whisper-large-v3-turbo"
 ```
 ---
 
@@ -522,22 +568,25 @@ In this case, you should adjust the launch command with:
 | Model Name        | Category         | Notes                          |
 |-------------------|------------------|---------------------------------|
 |       DeepSeek-R1-0528-Qwen3-8B   |        language model             |                                 |
-|       DeepSeek-R1-Distill-1.5B/7B/8B/14B/32B/70B             |         language model         |                                 |
+|       DeepSeek-R1-Distill-1.5B/7B/8B/14B/32B/70B             |         language model  |                |
 |       Qwen3-8B/14B/32B            |        language model             |                                 |
 |       QwQ-32B                     |        language model             |                                 |
 |       Ministral-8B                |        language model             |                                 |
+|       Mixtral-8x7B                |        language model             |                                 |
 |       Llama3.1-8B/Llama3.1-70B    |        language model             |                                 |
-|       Baichuan2-7B/13B            |        language model             |                                 |
-|       codegeex4-all-9b            |        language model             |                                 |
+|       Baichuan2-7B/13B            |        language model             |       with chat_template        |
+|       codegeex4-all-9b            |        language model             |       with chat_template        |
 |       DeepSeek-Coder-33B          |        language model             |                                 |
+|       GLM-4-0414-9B/32B           |        language model             |                                 |
 |       Qwen3-30B-A3B               |        language model             |                                 |
 |       Qwen2-VL-7B-Instruct        |        multimodal model           |                                 |
 |       MiniCPM-V-2.6               |        multimodal model           |                                 |
-|       Qwen2.5-VL 7B/32B/72B       |        multimodal model           | pip install transformers==4.52.4       |
-|       UI-TARS-7B-DPO              |        multimodal model           | pip install transformers==4.49.0       |
-|       Gemma-3-12B                 |        multimodal model           | only can run bf16 with no quantization |
-|       GLM-4V-9B                   |        multimodal model           | only can run with four cards           |
-|       Qwen2.5-Omni-7B             |        omni model           | pip install librosa soundfile           |
+|       Qwen2.5-VL 7B/32B/72B       |        multimodal model           | pip install transformers==4.52.4         |
+|       UI-TARS-7B-DPO              |        multimodal model           | pip install transformers==4.49.0         |
+|       Gemma-3-12B                 |        multimodal model           | only can run bf16 with no quantization   |
+|       GLM-4V-9B                   |        multimodal model           | with --hf-overrides and chat_template    |
+|       Qwen2.5-Omni-7B             |        omni model                 | pip install librosa soundfile            |
+|       whisper-medium/large-v3-turb|        audio model                | pip install transformers==4.52.4 librosa |
 |       Qwen3-Embedding             |        Embedding                  |                                 |
 |       bge-large, bge-m3           |        Embedding                  |                                 |
 |       Qwen3-Reranker              |        Rerank                     |                                 |
