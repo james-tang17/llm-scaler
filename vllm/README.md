@@ -20,7 +20,8 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
    2.6 [Data Parallelism (DP)](#26-data-parallelism-dp)  
    2.7 [Maximum Context Length Support](#27-maximum-context-length-support)  
 3. [Supported Models](#3-supported-models)  
-4. [Troubleshooting](#4-troubleshooting)  
+4. [Troubleshooting](#4-troubleshooting)
+5. [Performance tuning](#5-performance-tuning)
 
 ---
 
@@ -611,6 +612,37 @@ To avoid this error, make sure to run your commands from the `/llm` root directo
 cd /llm
 python3 -m vllm.entrypoints.openai.api_server
 ```
+
+
+## 5. Performance tuning
+
+To maximize performance, configure the following environment variables inside the container:
+
+```bash
+unset TRITON_XPU_PROFILE
+export VLLM_OFFLOAD_WEIGHTS_BEFORE_QUANT=0
+```
+
+In addition, you can optimize CPU affinity based on the GPU–NUMA topology.
+
+For example, if your process uses two GPUs that are both connected to NUMA node 0, you can use lscpu to identify the CPU cores associated with that NUMA node:
+
+```bash
+edgeai@edgeaihost27:~$ lscpu
+NUMA:
+  NUMA node(s):           4
+  NUMA node0 CPU(s):      0-17,72-89
+  NUMA node1 CPU(s):      18-35,90-107
+  NUMA node2 CPU(s):      36-53,108-125
+  NUMA node3 CPU(s):      54-71,126-143
+```
+
+Then, launch the service by binding it to the relevant CPU cores:
+```bash
+numactl -C 0-17 YOUR_COMMAND
+```
+
+This ensures that the CPU threads serving your GPUs remain on the optimal NUMA node, reducing memory access latency and improving throughput.
 
 
 
