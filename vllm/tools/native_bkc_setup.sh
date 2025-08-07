@@ -22,9 +22,6 @@ export https_proxy=http://child-prc.intel.com:913
 export http_proxy=http://child-prc.intel.com:913
 export no_proxy=127.0.0.1
  
-##########################################################
-##### Below server is for internal to maintain tools #####
-##########################################################
 WGET="wget --no-check-certificate"
  
 if [ "$(id -u)" -ne 0 ]; then

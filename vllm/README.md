@@ -1,6 +1,6 @@
 # llm-scaler-vllm
 
-llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapted for Intel’s Multi-BMG platform. This project enhances vLLM’s core architecture with Intel-specific performance optimizations, advanced features, and tailored support for customer use cases.
+llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapted for Intel’s Multi GPU platform. This project enhances vLLM’s core architecture with Intel-specific performance optimizations, advanced features, and tailored support for customer use cases.
 
 ---
 
@@ -17,10 +17,12 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
    2.2 [INT4 and FP8 Quantized Online Serving](#22-int4-and-fp8-quantized-online-serving)  
    2.3 [Embedding and Reranker Model Support](#23-embedding-and-reranker-model-support)  
    2.4 [Multi-Modal Model Support](#24-multi-modal-model-support)  
-   2.5 [Data Parallelism (DP)](#25-data-parallelism-dp)  
-   2.6 [Maximum Context Length Support](#26-maximum-context-length-support)  
-4. [Supported Models](#3-supported-models)  
-5. [Troubleshooting](#4-troubleshooting)  
+   2.5 [Omni Model Support](#25-omni-model-support)  
+   2.6 [Data Parallelism (DP)](#26-data-parallelism-dp)  
+   2.7 [Maximum Context Length Support](#27-maximum-context-length-support)  
+3. [Supported Models](#3-supported-models)  
+4. [Troubleshooting](#4-troubleshooting)
+5. [Performance tuning](#5-performance-tuning)
 
 ---
 
@@ -359,14 +361,14 @@ python3 -m vllm.entrypoints.openai.api_server \
     --max-num-batched-tokens=5120 \
     --disable-log-requests \
     --max-model-len=5120 \
-    --block-size 16 \
+    --block-size 64 \
     --quantization fp8 \
     -tp=1
 ```
 
 After starting the vLLM service, you can follow this link to use it
 
-#### [Multimodal input](https://docs.vllm.ai/en/latest/features/multimodal_inputs.html#online-serving)
+#### [Multimodal image input](https://docs.vllm.ai/en/latest/features/multimodal_inputs.html#image-inputs_1)
 
 ```bash
 curl http://localhost:8000/v1/chat/completions \
@@ -395,7 +397,112 @@ curl http://localhost:8000/v1/chat/completions \
 ```
 ---
 
-### 2.5 Data Parallelism (DP)
+### 2.4.1 Audio Model Support
+
+#### Install audio dependencies
+```bash
+pip install transformers==4.52.4 librosa
+```
+
+#### Start service using V0 engine
+```bash
+TORCH_LLM_ALLREDUCE=1 \
+VLLM_USE_V1=0 \
+CCL_ZE_IPC_EXCHANGE=pidfd \
+VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
+VLLM_WORKER_MULTIPROC_METHOD=spawn \
+python3 -m vllm.entrypoints.openai.api_server \
+    --model /llm/models/whisper-medium \
+    --served-model-name whisper-medium \
+    --allowed-local-media-path /llm/models/test \
+    --dtype=float16 \
+    --device=xpu \
+    --enforce-eager \
+    --port 8000 \
+    --host 0.0.0.0 \
+    --trust-remote-code \
+    --gpu-memory-util=0.9 \
+    --no-enable-prefix-caching \
+    --max-num-batched-tokens=5120 \
+    --disable-log-requests \
+    --max-model-len=5120 \
+    --block-size 16 \
+    --quantization fp8 \
+    -tp=1
+```
+
+After starting the vLLM service, you can follow this link to use it
+
+#### [Multimodal audio input](https://docs.vllm.ai/en/latest/features/multimodal_inputs.html#audio-inputs_1)
+
+```bash
+curl http://localhost:8000/v1/audio/transcriptions \
+-H "Content-Type: multipart/form-data" \
+-F file="@/llm/models/test/output.wav" \
+-F model="whisper-large-v3-turbo"
+```
+---
+
+### 2.5 Omni Model Support
+
+#### Install audio dependencies
+```bash
+pip install librosa soundfile
+```
+
+#### Start service using V1 engine
+```bash
+TORCH_LLM_ALLREDUCE=1 \
+VLLM_USE_V1=1 \
+CCL_ZE_IPC_EXCHANGE=pidfd \
+VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
+VLLM_WORKER_MULTIPROC_METHOD=spawn \
+python3 -m vllm.entrypoints.openai.api_server \
+    --model /llm/models/Qwen2.5-Omni-7B \
+    --served-model-name Qwen2.5-Omni-7B \
+    --allowed-local-media-path /llm/models/test \
+    --dtype=float16 \
+    --device=xpu \
+    --enforce-eager \
+    --port 8000 \
+    --host 0.0.0.0 \
+    --trust-remote-code \
+    --gpu-memory-util=0.9 \
+    --no-enable-prefix-caching \
+    --max-num-batched-tokens=5120 \
+    --disable-log-requests \
+    --max-model-len=5120 \
+    --block-size 64 \
+    --quantization fp8 \
+    -tp=1
+```
+
+After starting the vLLM service, you can follow this link to use it
+
+#### [Qwen2.5-Omni input](https://github.com/QwenLM/Qwen2.5-Omni?tab=readme-ov-file#vllm-serve-usage)
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{
+    "messages": [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": [
+        {"type": "image_url", "image_url": {"url": "https://modelscope.oss-cn-beijing.aliyuncs.com/resource/qwen.png"}},
+        {"type": "audio_url", "audio_url": {"url": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2.5-Omni/cough.wav"}},
+        {"type": "text", "text": "What is the text in the illustrate ans what it the sound in the audio?"}
+    ]}
+    ]
+    }'
+```
+
+An example responce is listed below:
+```json
+{"id":"chatcmpl-xxx","object":"chat.completion","model":"Qwen2.5-Omni-7B","choices":[{"index":0,"message":{"role":"assistant","reasoning_content":null,"content":"The text in the image is \"TONGYI Qwen\". The sound in the audio is a cough.","tool_calls":[]},"logprobs":null,"finish_reason":"stop","stop_reason":null}],"usage":{"prompt_tokens":156,"total_tokens":180,"completion_tokens":24,"prompt_tokens_details":null},"prompt_logprobs":null,"kv_transfer_params":null}
+```
+---
+
+### 2.6 Data Parallelism (DP)
 
 Supports data parallelism on Intel XPU with near-linear scaling.
 
@@ -415,7 +522,7 @@ To enable data parallelism, add:
 
 ---
 
-### 2.6 Maximum Context Length Support
+### 2.7 Maximum Context Length Support
 When using the `V1` engine, the system automatically logs the maximum supported context length during startup based on the available GPU memory and KV cache configuration.
 
 #### Example: Successful Startup
@@ -455,21 +562,26 @@ In this case, you should adjust the launch command with:
 | Model Name        | Category         | Notes                          |
 |-------------------|------------------|---------------------------------|
 |       DeepSeek-R1-0528-Qwen3-8B   |        language model             |                                 |
-|       DeepSeek-R1-Distill-1.5B/7B/8B/14B/32B/70B             |         language model         |                                 |
+|       DeepSeek-R1-Distill-1.5B/7B/8B/14B/32B/70B             |         language model  |                |
 |       Qwen3-8B/14B/32B            |        language model             |                                 |
 |       QwQ-32B                     |        language model             |                                 |
 |       Ministral-8B                |        language model             |                                 |
+|       Mixtral-8x7B                |        language model             |                                 |
 |       Llama3.1-8B/Llama3.1-70B    |        language model             |                                 |
-|       Baichuan2-7B/13B            |        language model             |                                 |
-|       codegeex4-all-9b            |        language model             |                                 |
+|       Baichuan2-7B/13B            |        language model             |       with chat_template        |
+|       codegeex4-all-9b            |        language model             |       with chat_template        |
 |       DeepSeek-Coder-33B          |        language model             |                                 |
-|       Qwen3-30B-A3B               |        language model             |                                 |
+|       GLM-4-0414-9B/32B           |        language model             |                                 |
+|Qwen3 30B-A3B/Coder-30B-A3B-Instruct|       language MOE model         |                                 |
+|       GLM-4.5-Air                 |        language MOE model         |                                 |
 |       Qwen2-VL-7B-Instruct        |        multimodal model           |                                 |
-|       MiniCPM-V-2.6               |        multimodal model           |                                 |
-|       Qwen2.5-VL 7B/32B/72B       |        multimodal model           | pip install transformers==4.52.4       |
-|       UI-TARS-7B-DPO              |        multimodal model           | pip install transformers==4.49.0       |
-|       Gemma-3-12B                 |        multimodal model           | only can run bf16 with no quantization |
-|       GLM-4V-9B                   |        multimodal model           | only can run with four cards           |
+|       MiniCPM-V-2.6               |        multimodal model           | use bf16 to avoid nan error     |
+|       Qwen2.5-VL 7B/32B/72B       |        multimodal model           | pip install transformers==4.52.4         |
+|       UI-TARS-7B-DPO              |        multimodal model           | pip install transformers==4.49.0         |
+|       Gemma-3-12B                 |        multimodal model           | only can run bf16 with no quantization   |
+|       GLM-4V-9B                   |        multimodal model           | with --hf-overrides and chat_template    |
+|       Qwen2.5-Omni-7B             |        omni model                 | pip install librosa soundfile            |
+|       whisper-medium/large-v3-turb|        audio model                | pip install transformers==4.52.4 librosa |
 |       Qwen3-Embedding             |        Embedding                  |                                 |
 |       bge-large, bge-m3           |        Embedding                  |                                 |
 |       Qwen3-Reranker              |        Rerank                     |                                 |
@@ -478,6 +590,50 @@ In this case, you should adjust the launch command with:
 
 ## 4. Troubleshooting
 
+### 4.1 ModuleNotFoundError: No module named 'vllm.\_C'
+
+If you encounter the following error:
+
+```
+ModuleNotFoundError: No module named 'vllm._C'
+```
+
+This may be caused by running your script from within the `/llm/vllm` directory.
+
+To avoid this error, make sure to run your commands from the `/llm` root directory instead. For example:
+
+```bash
+cd /llm
+python3 -m vllm.entrypoints.openai.api_server
+```
 
 
+## 5. Performance tuning
 
+To maximize performance, configure the following environment variables inside the container:
+
+```bash
+unset TRITON_XPU_PROFILE
+export VLLM_OFFLOAD_WEIGHTS_BEFORE_QUANT=0
+```
+
+In addition, you can optimize CPU affinity based on the GPU–NUMA topology.
+
+For example, if your process uses two GPUs that are both connected to NUMA node 0, you can use lscpu to identify the CPU cores associated with that NUMA node:
+
+```bash
+edgeai@edgeaihost27:~$ lscpu
+NUMA:
+  NUMA node(s):           4
+  NUMA node0 CPU(s):      0-17,72-89
+  NUMA node1 CPU(s):      18-35,90-107
+  NUMA node2 CPU(s):      36-53,108-125
+  NUMA node3 CPU(s):      54-71,126-143
+```
+
+Then, launch the service by binding it to the relevant CPU cores:
+```bash
+numactl -C 0-17 YOUR_COMMAND
+```
+
+This ensures that the CPU threads serving your GPUs remain on the optimal NUMA node, reducing memory access latency and improving throughput.

@@ -54,22 +54,9 @@ RUN mkdir /tmp/neo && \
     dpkg -i *.deb
 
 WORKDIR /llm
-COPY ./patches/vllm_for_multi_arc.patch /tmp/
-COPY ./patches/0001-oneccl-align-global-V0.1.1.patch /tmp/
-COPY ./patches/vllm_int4_for_multi_arc.so /opt/lib/
 
 # Set environment variables early
 ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib/"
-ENV VLLM_TARGET_DEVICE=xpu
-ENV VLLM_WORKER_MULTIPROC_METHOD=spawn
-
-# Clone + patch vllm
-RUN git clone -b v0.9.0 https://github.com/vllm-project/vllm.git && \
-    cd vllm && \
-    git apply /tmp/vllm_for_multi_arc.patch && \
-    pip install --no-cache-dir -r requirements/xpu.txt && \
-    export CPATH=/opt/intel/oneapi/dpcpp-ct/2025.0/include/:${CPATH} && \
-    python3 setup.py install
 
 # ======= Add oneCCL build =======
 RUN apt-get update && apt-get install -y \
@@ -77,56 +64,22 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Build 1ccl
-RUN git clone https://github.com/oneapi-src/oneCCL.git && \
-    cd oneCCL && \
-    git checkout def870543749186b6f38cdc865b44d52174c7492 && \
-    git apply /tmp/0001-oneccl-align-global-V0.1.1.patch && \
-    mkdir build && cd build && \
-    export IGC_VISAOptions=-activeThreadsOnlyBarrier && \
-    /usr/bin/cmake .. \
-        -DCMAKE_INSTALL_PREFIX=_install \
-        -DCMAKE_C_COMPILER=icx \
-        -DCMAKE_CXX_COMPILER=icpx \
-        -DCOMPUTE_BACKEND=dpcpp \
-        -DCCL_ENABLE_ARCB=1 && \
-    make -j && make install && \
-    mv _install /opt/intel/oneapi/ccl/2021.15.3 && \
-    cd /opt/intel/oneapi/ccl/ && \
-    ln -snf 2021.15.3 latest
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/python3.10/dist-packages/torch/lib:$LD_LIBRARY_PATH"
 
-# Install pypi dependencies
-RUN pip install --pre --upgrade bigdl-core
+RUN pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/xpu && \
+    pip install intel-extension-for-pytorch==2.7.10+xpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/cn && \
+    pip install bigdl-core-xe-all==2.6.0 --extra-index-url https://download.pytorch.org/whl/xpu && \
+    apt remove python3-blinker -y
 
-# Cleanup patch file
-RUN rm -rf /tmp/*
+COPY ./patches/wan_for_multi_arc.patch /tmp/
 
-# Configure environment to source oneAPI
-RUN echo "source /opt/intel/oneapi/setvars.sh --force" >> /root/.bashrc
+RUN cd /llm && \
+    git clone https://github.com/Wan-Video/Wan2.1.git && \
+    cd ./Wan2.1 && \
+    git checkout 7c81b2f27defa56c7e627a4b6717c8f2292eee58 && \
+    git apply /tmp/wan_for_multi_arc.patch && \
+    pip install -r requirements.txt && \
+    pip install einops && \
+    pip install cffi
 
-SHELL ["bash", "-c"]
-CMD ["bash", "-c", "source /root/.bashrc && exec bash"]
-
-# ======== OpenAI Serving Stage ========
-FROM vllm-base AS vllm-openai
-
-ARG http_proxy
-ARG https_proxy
-
-# install additional dependencies for openai api server
-RUN pip install accelerate hf_transfer 'modelscope!=1.15.0'
-
-# Install required triton version
-RUN pip uninstall pytorch-triton-xpu triton -y && \
-    pip install https://download.pytorch-extension.intel.com/ipex_dev/xpu/triton-3.3.0%2Bgitbd88137b-cp310-cp310-linux_x86_64.whl
-
-# Set additional environment for production usage
-ENV VLLM_USAGE_SOURCE=production-docker-image
-ENV TRITON_XPU_PROFILE=1
-ENV VLLM_QUANTIZE_Q40_LIB="/usr/local/lib/python3.10/dist-packages/vllm_int4_for_multi_arc.so"
-
-# install development dependencies (for testing)
-RUN cd /llm/vllm && \
-    python3 -m pip install -e tests/vllm_test_utils
-    
-ENTRYPOINT ["python3", "-m", "vllm.entrypoints.openai.api_server"]
+WORKDIR /llm/Wan2.1
