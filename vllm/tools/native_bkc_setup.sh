@@ -18,8 +18,8 @@
 ########################################
 ##### Do Update the Proxy settings #####
 ########################################
-export https_proxy=http://child-prc.intel.com:913
-export http_proxy=http://child-prc.intel.com:913
+export https_proxy=http://your-proxy.com:913
+export http_proxy=http://your-proxy.com:913
 export no_proxy=127.0.0.1
  
 WGET="wget --no-check-certificate"
