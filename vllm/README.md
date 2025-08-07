@@ -7,19 +7,20 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 ## Table of Contents
 
 1. [Getting Started and Usage](#1-getting-started-and-usage)  
-   1.1 [Install Native Environment](#11-install-native-environment)  
-   1.2 [Pulling and Running the Docker Container](#11-pulling-and-running-the-docker-container)  
-   1.3 [Launching the Serving Service](#12-launching-the-serving-service)  
-   1.4 [Benchmarking the Service](#13-benchmarking-the-service)  
-2. [Advanced Features](#2-advanced-features)  
+   1.1 [Install Native Environment](#11-install-native-environment)
+   1.2 [Pulling and Running the Platform Evaluation Container](#12-Pulling-and-Running-the-Platform-Evaluation-Docker-Container)
+   1.3 [Pulling and Running the Docker Container](#13-pulling-and-running-the-vllm-docker-container)  
+   1.4 [Launching the Serving Service](#14-launching-the-serving-service)  
+   1.5 [Benchmarking the Service](#15-benchmarking-the-service)  
+3. [Advanced Features](#2-advanced-features)  
    2.1 [CCL Support (both P2P & USM)](#21-ccl-support-both-p2p--usm)  
    2.2 [INT4 and FP8 Quantized Online Serving](#22-int4-and-fp8-quantized-online-serving)  
    2.3 [Embedding and Reranker Model Support](#23-embedding-and-reranker-model-support)  
    2.4 [Multi-Modal Model Support](#24-multi-modal-model-support)  
    2.5 [Data Parallelism (DP)](#25-data-parallelism-dp)  
    2.6 [Maximum Context Length Support](#26-maximum-context-length-support)  
-3. [Supported Models](#3-supported-models)  
-4. [Troubleshooting](#4-troubleshooting)  
+4. [Supported Models](#3-supported-models)  
+5. [Troubleshooting](#4-troubleshooting)  
 
 ---
 
@@ -134,7 +135,7 @@ drwxr-xr-x 3 root root  4096 Aug  7 02:05 ..
 
 You can also check 03_KNOWN_ISSUE.md and 04_FAQ.md for more details.
 
-### 1.2 Pulling and Running the vllm Docker Container
+### 1.3 Pulling and Running the vllm Docker Container
 
 First, pull the image:
 
@@ -167,7 +168,7 @@ docker exec -it lsv-container bash
 
 ---
 
-### 1.3 Launching the Serving Service
+### 1.4 Launching the Serving Service
 
 ```bash
 TORCH_LLM_ALLREDUCE=1 \
@@ -196,7 +197,7 @@ python3 -m vllm.entrypoints.openai.api_server \
 
 ---
 
-### 1.4 Benchmarking the Service
+### 1.5 Benchmarking the Service
 
 ```bash
 python3 /llm/vllm/benchmarks/benchmark_serving.py \
