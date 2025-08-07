@@ -9,7 +9,7 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 1. [Getting Started and Usage](#1-getting-started-and-usage)  
    1.1 [Install Native Environment](#11-install-native-environment)  
    1.2 [Pulling and Running the Platform Evaluation Container](#12-Pulling-and-Running-the-Platform-Evaluation-Docker-Container)  
-   1.3 [Pulling and Running the Docker Container](#13-pulling-and-running-the-vllm-docker-container)  
+   1.3 [Pulling and Running the vllm Docker Container](#13-pulling-and-running-the-vllm-docker-container)  
    1.4 [Launching the Serving Service](#14-launching-the-serving-service)  
    1.5 [Benchmarking the Service](#15-benchmarking-the-service)  
 3. [Advanced Features](#2-advanced-features)  
