@@ -25,9 +25,12 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 
 ## 1. Getting Started and Usage
 
-### 1.1 Install Native Environment
+We provide three offerings to setup the environment and run evaluation:
+- Bare Mental BKC Installation Script
+- Platform Evaluation Docker Image
+- vllm Inference Docker Image
 
-#### 1.1.1 Execute the Script
+### 1.1 Install Native Environment
 
 First, install a standard Ubuntu 25.04
 - [Ubuntu 25.04 Desktop](https://releases.ubuntu.com/25.04/ubuntu-25.04-desktop-amd64.iso) (for Xeon-W)
@@ -40,7 +43,8 @@ export https_proxy=http://your-proxy.com:port
 export http_proxy=http://your-proxy.com:port
 export no_proxy=127.0.0.1,*.intel.com
 ````
-Make sure your system has internet access and also the proxy can access [Ubuntu intel-graphics PPA](https://launchpad.net/~kobuk-team/+archive/ubuntu/intel-graphics) since native_bkc_setup.sh will get packages from there.
+
+Make sure your system has internet access since we need to update the Linux kernel, GPU firmware and install base docker environments.
 
 Switch to root user, run this script.
 
@@ -54,95 +58,83 @@ chmod +x native_bkc_setup.sh
 If everything is ok, you can see below installation completion message. Depending on your network speed, the execution may require 30 mins or longer time. 
 
 ```bash
-Tools and scripts are located at /root/multi-arc.
 ✅ [DONE] Environment setup complete. Please reboot your system to apply changes.
 ````
 
-#### 1.1.2 Check the Installation
+### 1.2 Pulling and Running the Platform Evaluation Docker Container
 
-Since it update the GPU firmware and initramfs, you need to reboot to make the changes taking effect. 
+Platform docker image targets for GPU memory bandwidth, GEMM, P2P, collective communication benchmark. 
 
-After reboot, you can use lscpi and sycl-ls to check if all the drivers are installed correctly.
-
-For Intel B60 GPU, it's device ID is e211, you can grep this ID in lspci to make sure the KMD (kernel mode driver) workable. 
+To pull the image,
 
 ```bash
-root@edgeaihost19:~# lspci -tv | grep -i e211
- |           \-01.0-[17-1a]----00.0-[18-1a]--+-01.0-[19]----00.0  Intel Corporation Device e211
- |           \-05.0-[4e-51]----00.0-[4f-51]--+-01.0-[50]----00.0  Intel Corporation Device e211
- |           \-01.0-[85-88]----00.0-[86-88]--+-01.0-[87]----00.0  Intel Corporation Device e211
- |           \-01.0-[bc-bf]----00.0-[bd-bf]--+-01.0-[be]----00.0  Intel Corporation Device e211
+docker pull intel/llm-scaler-platform:latest
 ````
 
-If you also see e211 device recognized by sycl-ls, then GPGPU UMD (user mode driver) working properly.
+Then, run the container with below script. IMAGE_NAME is the container name you just pull.
+HOST_DIR is the directory you want to mount into the docker.
 
 ```bash
-root@edgeaihost19:~# source /opt/intel/oneapi/setvars.sh
+IMAGE_NAME="intel/llm-scaler-platform:latest"
+HOST_DIR="$2"
 
-:: initializing oneAPI environment ...
-   -bash: BASH_VERSION = 5.2.37(1)-release
-:: advisor -- latest
-:: ccl -- latest
-:: compiler -- latest
-:: dal -- latest
-:: debugger -- latest
-:: dev-utilities -- latest
-:: dnnl -- latest
-:: dpcpp-ct -- latest
-:: dpl -- latest
-:: ipp -- latest
-:: ippcp -- latest
-:: mkl -- latest
-:: mpi -- latest
-:: pti -- latest
-:: tbb -- latest
-:: umf -- latest
-:: vtune -- latest
-:: oneAPI environment initialized ::
+# Verify directory exists
+if [ ! -d "$HOST_DIR" ]; then
+  echo "Error: Directory '$HOST_DIR' does not exist."
+  exit 2
+fi
 
-root@edgeaihost19:~# sycl-ls
-[level_zero:gpu][level_zero:0] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) Graphics [0xe211] 20.1.0 [1.6.33944+12]
-[level_zero:gpu][level_zero:1] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) Graphics [0xe211] 20.1.0 [1.6.33944+12]
-[level_zero:gpu][level_zero:2] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) Graphics [0xe211] 20.1.0 [1.6.33944+12]
-[level_zero:gpu][level_zero:3] Intel(R) oneAPI Unified Runtime over Level-Zero, Intel(R) Graphics [0xe211] 20.1.0 [1.6.33944+12]
-[opencl:cpu][opencl:0] Intel(R) OpenCL, Intel(R) Xeon(R) w5-2545 OpenCL 3.0 (Build 0) [2025.20.6.0.04_224945]
-[opencl:gpu][opencl:1] Intel(R) OpenCL Graphics, Intel(R) Graphics [0xe211] OpenCL 3.0 NEO  [25.22.33944]
-[opencl:gpu][opencl:2] Intel(R) OpenCL Graphics, Intel(R) Graphics [0xe211] OpenCL 3.0 NEO  [25.22.33944]
-[opencl:gpu][opencl:3] Intel(R) OpenCL Graphics, Intel(R) Graphics [0xe211] OpenCL 3.0 NEO  [25.22.33944]
-[opencl:gpu][opencl:4] Intel(R) OpenCL Graphics, Intel(R) Graphics [0xe211] OpenCL 3.0 NEO  [25.22.33944]
+# Run the container
+docker run -it \
+  --device=/dev/dri \
+  --group-add video \
+  --cap-add=SYS_ADMIN \
+  --mount type=bind,source=/dev/dri/by-path,target=/dev/dri/by-path \
+  --mount type=bind,source=/sys,target=/sys \
+  --mount type=bind,source=/dev/bus,target=/dev/bus \
+  --mount type=bind,source=/dev/char,target=/dev/char \
+  --mount type=bind,source="$(realpath "$HOST_DIR")",target=/mnt/workdir \
+  "$IMAGE_NAME" \
+  bash
 ````
 
-#### 1.1.3 Using Tools
-
-This script installs 2 tools for GPU development: 
-
-- level-zero-tests: GPU P2P & memory bandwidth benchmark
-- xpu-smi: GPU profiling and management
-
-level-zero-tests is located /root/multi-arc/level-zero-tests. It's already built, you can directly run the binary in
-- level-zero-tests/build/perf_tests/ze_peer/ze_peer for P2P benchmark
-- level-zero-tests/build/perf_tests/ze_peak/ze_peak for memory bandwidth benchmark including H2D, D2H, D2D
-
-xpu-smi already installed in system, you can directly run.
+Once you enter the docker container, go to /opt/intel/multi-arc directory, collaterals/tools/scripts put there.
 
 ```bash
-xpu-smi
+root@da47dbf0a2f4:/opt/intel/multi-arc/multi-arc-bmg-offline-installer-25.32.1.2# ls -l
+total 68
+-rw-r--r-- 1 root root  695 Aug  7 03:21 01_RELEASE_NTOES.md
+-rw-r--r-- 1 root root 8183 Aug  7 02:11 02_README.md
+-rw-r--r-- 1 root root 1164 Aug  6 01:16 03_KNOWN_ISSUES.md
+-rw-r--r-- 1 root root 2371 Aug  7 04:40 04_FAQ.md
+drwxr-xr-x 3 root root 4096 Aug  3 15:17 base
+drwxr-xr-x 2 root root 4096 Jul 29 23:31 firmware
+drwxr-xr-x 6 root root 4096 Aug  3 23:15 gfxdrv
+-rwxr-xr-x 1 root root 5993 Aug  6 15:44 installer.sh
+-rw-r--r-- 1 root root 9200 Aug  7 04:55 install_log_20250807_045158.log
+drwxr-xr-x 2 root root 4096 Aug  3 15:12 oneapi
+drwxr-xr-x 3 root root 4096 Aug  7 02:05 results
+drwxr-xr-x 6 root root 4096 Aug  3 23:42 scripts
+drwxr-xr-x 6 root root 4096 Aug  3 15:17 tools
 ````
 
-Intel also offers 2 other tools which are not publicly available for current Pre-PV release. 
-- 1ccl tool for collective communication benchmark
-- gemm tool for compute capability benchmark
+Please read the 02_README.md firstly to understand all of our offerings. Then your may use scripts/evaluation/platform_basic_evaluation.sh
+to perform a quick evaluation with report under results. We also provide a reference report under results/
 
-To get these 2 tools or detailed user guide for all tools, please contact your Intel support team for help.
-
-We also provide a script to set the CPU/GPU to performance mode, you can run it before running the workload
-
-```bash 
-cd /root/multi-arc
-./setup_perf.sh
+```bash
+root@da47dbf0a2f4:/opt/intel/multi-arc/multi-arc-bmg-offline-installer-25.32.1.2/results/20250807_100553# ls -la
+total 48
+drwxr-xr-x 2 root root  4096 Aug  7 02:10 .
+drwxr-xr-x 3 root root  4096 Aug  7 02:05 ..
+-rw-r--r-- 1 root root  1967 Aug  7 02:08 allgather_outplace_128M.csv
+-rw-r--r-- 1 root root  2034 Aug  7 02:08 allreduce_outplace_128M.csv
+-rw-r--r-- 1 root root  1960 Aug  7 02:08 alltoall_outplace_128M.csv
+-rw-r--r-- 1 root root 26541 Aug  7 02:08 test_log.txt
 ````
 
-### 1.2 Pulling and Running the Docker Container
+You can also check 03_KNOWN_ISSUE.md and 04_FAQ.md for more details.
+
+### 1.2 Pulling and Running the vllm Docker Container
 
 First, pull the image:
 
