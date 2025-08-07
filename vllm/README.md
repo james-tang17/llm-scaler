@@ -55,7 +55,7 @@ chmod +x native_bkc_setup.sh
 ./native_bkc_setup.sh
 ```` 
 
-If everything is ok, you can see below installation completion message. Depending on your network speed, the execution may require 30 mins or longer time. 
+If everything is ok, you can see below installation completion message. Depending on your network speed, the execution may require 5 mins or longer time. 
 
 ```bash
 ✅ [DONE] Environment setup complete. Please reboot your system to apply changes.
