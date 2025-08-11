@@ -22,8 +22,6 @@ export https_proxy=http://your-proxy.com:913
 export http_proxy=http://your-proxy.com:913
 export no_proxy=127.0.0.1
  
-WGET="wget --no-check-certificate"
- 
 if [ "$(id -u)" -ne 0 ]; then
   echo "[ERROR] This script must be run as root. Exiting."
   exit 1
@@ -35,14 +33,23 @@ trap 'echo "[ERROR] Script failed at line $LINENO."' ERR
  
 # Output both to terminal and log file
 exec > >(tee -i /var/log/multi_arc_setup_env.log) 2>&1
- 
+
+if [[ "$http_proxy" == "http://your-proxy.com:913" ]] || [[ "$https_proxy" == "http://your-proxy.com:913" ]]; then
+  echo "[ERROR] Proxy environment variables http_proxy or https_proxy are still set to default placeholder values."
+  echo "Please update them to your actual proxy before running this script."
+  exit 1
+fi
+
 echo -e "\n[INFO] Starting environment setup..."
  
 # Internet access check
-echo "[INFO] Testing internet access to www.google.com ..."
-if ! curl -s --connect-timeout 10 https://www.bing.com >/dev/null; then
-  echo "[WARNING] Internet access through proxy may be unavailable."
+echo "[INFO] Testing internet access to www.bing.com ..."
+if ! wget -q --spider --timeout=10 https://www.bing.com; then
+    echo "[WARNING] Internet access through proxy may be unavailable. Check your connection!"
+    exit 1
 fi
+
+apt update
 
 # Install kernel
 # === Config ===
@@ -57,33 +64,23 @@ CURRENT_VERSION="$(uname -r)"
 echo "Current running kernel: $CURRENT_VERSION"
 echo "Target kernel version: $TARGET_VERSION"
 
-if [[ "$CURRENT_VERSION" == "$TARGET_VERSION" ]]; then
-    echo "✅ Already running the target kernel. No changes needed."
-    exit 0
-fi
-
-# === Check if target kernel is installed ===
-if [[ ! -d "/lib/modules/$TARGET_VERSION" ]]; then
-    echo "⚠️ Target kernel is not installed. Installing..."
-
-    apt update
-
+if dpkg -s "linux-image-${TARGET_VERSION}" >/dev/null 2>&1; then
+    echo "Kernel ${TARGET_VERSION} installed, skip..."
+else
+    echo "Kernel ${TARGET_VERSION} not installed, start installation..."
     for pkg in \
         "linux-image-$TARGET_VERSION" \
         "linux-headers-$TARGET_VERSION" \
         "linux-modules-$TARGET_VERSION" \
-        "linux-modules-extra-$TARGET_VERSION"; do
-
+        "linux-modules-extra-$TARGET_VERSION";
+    do
         echo "Installing $pkg ..."
         if ! apt install -y "$pkg"; then
             echo "❌ Failed to install $pkg. Check repository or kernel version."
             exit 1
         fi
     done
-
     echo "✅ Kernel $TARGET_VERSION installed successfully."
-else
-    echo "✅ Target kernel is already installed."
 fi
 
 # === Check GRUB top-level menu for target kernel ===
@@ -150,6 +147,7 @@ else
 fi
 
 update-initramfs -u
+rm -rf $WORK_DIR
 echo -e "✅ Update GPU firmware successfully"
 
 echo -e "\n[INFO] Disabling intel_iommu..."
@@ -163,7 +161,36 @@ else
   exit 1
 fi
 
-# Install docker environment
-apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# Check if Docker is already installed
+if command -v docker >/dev/null 2>&1; then
+    echo "[INFO] Docker is already installed. Skipping installation."
+else
+    echo "[INFO] Docker is not installed. Starting installation..."
+
+    # Add Docker GPG key if not present
+    if [ ! -f /etc/apt/keyrings/docker.asc ]; then
+        echo "[INFO] Adding Docker GPG key..."
+        apt-get install -y ca-certificates curl
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+    fi
+
+    # Add Docker repository if not present
+    if [ ! -f /etc/apt/sources.list.d/docker.list ]; then
+        echo "[INFO] Adding Docker repository..."
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+          tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update
+    fi
+
+    # Install Docker packages
+    echo "[INFO] Installing Docker..."
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    echo "[INFO] Docker installation completed successfully."
+fi
 
 echo -e "\n✅ [DONE] Environment setup complete. Please reboot your system to apply changes."
