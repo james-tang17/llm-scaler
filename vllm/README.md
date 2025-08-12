@@ -85,7 +85,7 @@ HOST_DIR is the directory you want to mount into the docker.
 
 ```bash
 IMAGE_NAME="intel/llm-scaler-platform:latest"
-HOST_DIR="$2"
+HOST_DIR=""
 
 # Verify directory exists
 if [ ! -d "$HOST_DIR" ]; then
@@ -95,7 +95,9 @@ fi
 
 # Run the container
 docker run -it \
+  --privileged \
   --device=/dev/dri \
+  $(for dev in /dev/mei*; do echo --device $dev; done) \
   --group-add video \
   --cap-add=SYS_ADMIN \
   --mount type=bind,source=/dev/dri/by-path,target=/dev/dri/by-path \
