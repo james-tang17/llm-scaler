@@ -2249,7 +2249,7 @@ curl http://localhost:8000/v1/chat/completions \
     {"role": "user", "content": [
         {"type": "image_url", "image_url": {"url": "https://modelscope.oss-cn-beijing.aliyuncs.com/resource/qwen.png"}},
         {"type": "audio_url", "audio_url": {"url": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2.5-Omni/cough.wav"}},
-        {"type": "text", "text": "What is the text in the illustrate ans what it the sound in the audio?"}
+        {"type": "text", "text": "What is the text in the illustration, and what is the sound in the audio?"}
     ]}
     ]
     }'
