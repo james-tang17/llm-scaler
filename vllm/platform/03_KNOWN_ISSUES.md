@@ -5,13 +5,7 @@ The issue is caused by an outdated GPU GuC firmware bundled in the official Ubun
 Workaround: Remove the B60 card before starting the Ubuntu installation, and plug it back in once the installation is complete.
 We are also working with the Ubuntu team to address this issue upstream.
 
-# 02. Maxsun 2x GPU Card Not Detected Behind PCIe Switch
-Many PCIe switch firmware versions do not support PCIe bifurcation, which prevents detection of dual-GPU cards like Maxsun 2x.
-
-Solution: A firmware update for the PCIe switch is required.
-The Broadcom PEX 89104 has been validated. Please contact your PCIe switch vendor for support or an updated firmware.
-
-# 03. Limited 33 GB/s Bi-Directional P2P Bandwidth with 1x GPU Card
+# 02. Limited 33 GB/s Bi-Directional P2P Bandwidth with 1x GPU Card
 When using a single GPU card over a x16 PCIe connection without a PCIe switch, the observed bi-directional P2P bandwidth is limited to 33 GB/s.
 
 Workaround: Change the PCIe slot configuration in BIOS from Auto/x16 to x8/x8.
