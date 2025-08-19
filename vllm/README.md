@@ -30,16 +30,25 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 
 ## 1. Getting Started and Usage
 
-We provide three offerings to setup the environment and run evaluation:
+Overall, we provide three offerings to setup the environment and run evaluation:
 
-- Bare Mental BKC Installation Script
+- Bare Mental BKC Installation Script (native_bkc_setup.sh)  
 Linux kernel, GPU firmware and docker library setup
 
-- Platform Evaluation Docker Image 
+- Platform Evaluation Docker Image (llm-scaler-platform)  
 GEMM/GPU Memory Bandwidth/P2P/1CCL benchmark
 
-- vllm Inference Docker Image 
+- vllm Inference Docker Image (llm-scaler-vllm)  
 LLM inference evaluation
+
+We provide two different Docker images, each designed for a distinct use case:
+
+| Use Case | Description | Required Steps |
+| -------- | ----------- | -------------- |
+| **Platform Evaluation** | For evaluating platform capabilities only, with no intention to run vLLM inference. | 1. Install **Ubuntu 25.04** <br> 2. Run the **bare-metal BKC installation script** <br> 3. Pull the **platform evaluation Docker image** from Docker Hub (everything is pre-installed, no additional setup required) |
+| **vLLM Inference Benchmark** | For running inference benchmarks based on vLLM/IPEX. | 1. Install **Ubuntu 25.04** <br> 2. Run the **bare-metal BKC installation script** <br> 3. Pull the **vLLM Docker image** from Docker Hub <br> 4. Download the target model <br> 5. Run **vLLM-based inference performance tests** |
+
+The platform evaluation Docker image is intended for ODM customers who primarily need a quick assessment of platform capabilities. This image only includes platform evaluation tools and is significantly smaller in size compared to the vLLM Docker image.
 
 ### 1.1 Install Native Environment
 
