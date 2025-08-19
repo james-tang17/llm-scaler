@@ -158,11 +158,17 @@ You can also check 03_KNOWN_ISSUE.md and 04_FAQ.md for more details.
 
 ### 1.3 Pulling and Running the vllm Docker Container
 
-First, pull the image:
+First, pull the image for **Intel Arc B60 GPUs**:
 
 ```bash
 docker pull intel/llm-scaler-vllm:latest
 ````
+
+**Supplement: For Intel Arc A770 GPUs**
+```bash
+docker pull intelanalytics/multi-arc-serving:latest
+````
+- Usage Instructions: [VLLM Docker Quickstart for A770](https://github.com/intel/ipex-llm/blob/main/docs/mddocs/DockerGuides/vllm_docker_quickstart.md#3-start-the-docker-container)
 
 Then, run the container:
 
