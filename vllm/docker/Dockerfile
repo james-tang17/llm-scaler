@@ -40,8 +40,6 @@ RUN apt-get update -y && \
 
 WORKDIR /llm
 COPY ./patches/vllm_for_multi_arc.patch /tmp/
-# TODO: update oneccl...
-COPY ./patches/0001-oneccl-align-global-V0.1.1.patch /tmp/
 
 # Set environment variables early
 ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib/"
@@ -60,10 +58,10 @@ RUN git clone -b v0.10.0 https://github.com/vllm-project/vllm.git && \
     python3 setup.py install
 
 # ======= Add oneCCL build =======
-RUN apt-get update && apt-get install -y \
-    cmake \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y \
+#     cmake \
+#     g++ \
+#     && rm -rf /var/lib/apt/lists/*
 
 # TODO: update
 # Build 1ccl
@@ -83,9 +81,9 @@ RUN apt-get update && apt-get install -y \
 #     mv _install /opt/intel/oneapi/ccl/2021.15.3 && \
 #     cd /opt/intel/oneapi/ccl/ && \
 #     ln -snf 2021.15.3 latest
-RUN cd /tmp/ && \
-    wget https://github.com/uxlfoundation/oneCCL/releases/download/2021.15.4/intel-oneccl-2021.15.4.11_offline.sh && \
-    bash intel-oneccl-2021.15.4.11_offline.sh -a --silent --eula accept
+# RUN cd /tmp/ && \
+#     wget https://github.com/uxlfoundation/oneCCL/releases/download/2021.15.4/intel-oneccl-2021.15.4.11_offline.sh && \
+#     bash intel-oneccl-2021.15.4.11_offline.sh -a --silent --eula accept
 
 # Install pypi dependencies
 RUN pip install bigdl-core==2.4.0b1
