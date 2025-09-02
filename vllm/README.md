@@ -215,15 +215,12 @@ This way, only the first GPU will be mapped into the Docker container.
 ### 1.4 Launching the Serving Service
 
 ```bash
-TORCH_LLM_ALLREDUCE=1 \
-VLLM_USE_V1=1 \
-CCL_ZE_IPC_EXCHANGE=pidfd \
 VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
 VLLM_WORKER_MULTIPROC_METHOD=spawn \
 python3 -m vllm.entrypoints.openai.api_server \
     --model /llm/models/DeepSeek-R1-Distill-Qwen-7B \
+    --served-model-name DeepSeek-R1-Distill-Qwen-7B \
     --dtype=float16 \
-    --device=xpu \
     --enforce-eager \
     --port 8000 \
     --host 0.0.0.0 \
@@ -248,6 +245,7 @@ you can add the argument `--api-key xxx` for user authentication. Users are supp
 python3 /llm/vllm/benchmarks/benchmark_serving.py \
     --model /llm/models/DeepSeek-R1-Distill-Qwen-7B \
     --dataset-name random \
+    --served-model-name DeepSeek-R1-Distill-Qwen-7B \
     --random-input-len=1024 \
     --random-output-len=512 \
     --ignore-eos \
@@ -2021,15 +2019,11 @@ To enable online quantization using `llm-scaler-vllm`, specify the desired quant
 The following example shows how to launch the server with `sym_int4` quantization:
 
 ```bash
-TORCH_LLM_ALLREDUCE=1 \
-VLLM_USE_V1=1 \
-CCL_ZE_IPC_EXCHANGE=pidfd \
 VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
 VLLM_WORKER_MULTIPROC_METHOD=spawn \
 python3 -m vllm.entrypoints.openai.api_server \
     --model /llm/models/DeepSeek-R1-Distill-Qwen-7B \
     --dtype=float16 \
-    --device=xpu \
     --enforce-eager \
     --port 8000 \
     --host 0.0.0.0 \
@@ -2045,28 +2039,26 @@ python3 -m vllm.entrypoints.openai.api_server \
     -tp=1
 ```
 
-To use fp8 quantization, simply replace `--quantization sym_int4` with:
+To use fp8 online quantization, simply replace `--quantization sym_int4` with:
 
 ```bash
 --quantization fp8
 ```
+
+For those models that have been quantized before, such as AWQ-Int4/GPTQ-Int4/FP8 models, user do not need to specify the `--quantization` option.
 ---
 
 ### 2.3 Embedding and Reranker Model Support
 
-#### Start service using V0 engine
+#### Start service with embedding task
 ```bash
-TORCH_LLM_ALLREDUCE=1 \
-VLLM_USE_V1=0 \
-CCL_ZE_IPC_EXCHANGE=pidfd \
 VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
 VLLM_WORKER_MULTIPROC_METHOD=spawn \
 python3 -m vllm.entrypoints.openai.api_server \
-    --model /llm/models/bge-reranker-large \
-    --served-model-name bge-reranker-large \
+    --model /llm/models/bge-m3 \
+    --served-model-name bge-m3 \
     --task embed \
     --dtype=float16 \
-    --device=xpu \
     --enforce-eager \
     --port 8000 \
     --host 0.0.0.0 \
@@ -2077,31 +2069,12 @@ python3 -m vllm.entrypoints.openai.api_server \
     --max-num-batched-tokens=2048 \
     --disable-log-requests \
     --max-model-len=2048 \
-    --block-size 16 \
-    --quantization fp8 \
+    --block-size 64 \
     -tp=1
 ```
 
-After starting the vLLM service, you can follow these two links to use it.
-#### [Rerank api](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#re-rank-api)
-
-```bash
-curl -X 'POST' \
-  'http://127.0.0.1:8000/v1/rerank' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "model": "bge-reranker-large",
-  "query": "What is the capital of France?",
-  "documents": [
-    "The capital of Brazil is Brasilia.",
-    "The capital of France is Paris.",
-    "Horses and cows are both animals.",
-    "The French have a rich tradition in engineering."
-  ]
-}'
-```
-
+---
+After starting the vLLM service, you can follow this link to use it.
 #### [Embedding api](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#embeddings-api_1)
 
 ```bash
@@ -2113,15 +2086,57 @@ curl http://localhost:8000/v1/embeddings \
     "encoding_format": "float"
   }'
 ```
+
+#### Start service with classify task
+
+```bash
+VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
+VLLM_WORKER_MULTIPROC_METHOD=spawn \
+python3 -m vllm.entrypoints.openai.api_server \
+    --model /llm/models/bge-reranker-base \
+    --served-model-name bge-reranker-base \
+    --task classify \
+    --dtype=float16 \
+    --enforce-eager \
+    --port 8000 \
+    --host 0.0.0.0 \
+    --trust-remote-code \
+    --disable-sliding-window \
+    --gpu-memory-util=0.9 \
+    --no-enable-prefix-caching \
+    --max-num-batched-tokens=2048 \
+    --disable-log-requests \
+    --max-model-len=2048 \
+    --block-size 64 \
+    -tp=1
+```
+After starting the vLLM service, you can follow this link to use it.
+#### [Rerank api](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#re-rank-api)
+
+```bash
+curl -X 'POST' \
+  'http://127.0.0.1:8000/v1/rerank' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "model": "bge-reranker-base",
+  "query": "What is the capital of France?",
+  "documents": [
+    "The capital of Brazil is Brasilia.",
+    "The capital of France is Paris.",
+    "Horses and cows are both animals.",
+    "The French have a rich tradition in engineering."
+  ]
+}'
+```
+
+
 ---
 
 ### 2.4 Multi-Modal Model Support
 
 #### Start service using V1 engine
 ```bash
-TORCH_LLM_ALLREDUCE=1 \
-VLLM_USE_V1=1 \
-CCL_ZE_IPC_EXCHANGE=pidfd \
 VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
 VLLM_WORKER_MULTIPROC_METHOD=spawn \
 python3 -m vllm.entrypoints.openai.api_server \
@@ -2129,7 +2144,6 @@ python3 -m vllm.entrypoints.openai.api_server \
     --served-model-name Qwen2.5-VL-7B-Instruct \
     --allowed-local-media-path /llm/models/test \
     --dtype=float16 \
-    --device=xpu \
     --enforce-eager \
     --port 8000 \
     --host 0.0.0.0 \
@@ -2175,7 +2189,7 @@ curl http://localhost:8000/v1/chat/completions \
 ```
 ---
 
-### 2.4.1 Audio Model Support
+### 2.4.1 Audio Model Support [Deprecated]
 
 #### Install audio dependencies
 ```bash
@@ -2194,7 +2208,6 @@ python3 -m vllm.entrypoints.openai.api_server \
     --served-model-name whisper-medium \
     --allowed-local-media-path /llm/models/test \
     --dtype=float16 \
-    --device=xpu \
     --enforce-eager \
     --port 8000 \
     --host 0.0.0.0 \
@@ -2230,9 +2243,6 @@ pip install librosa soundfile
 
 #### Start service using V1 engine
 ```bash
-TORCH_LLM_ALLREDUCE=1 \
-VLLM_USE_V1=1 \
-CCL_ZE_IPC_EXCHANGE=pidfd \
 VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
 VLLM_WORKER_MULTIPROC_METHOD=spawn \
 python3 -m vllm.entrypoints.openai.api_server \
@@ -2240,7 +2250,6 @@ python3 -m vllm.entrypoints.openai.api_server \
     --served-model-name Qwen2.5-Omni-7B \
     --allowed-local-media-path /llm/models/test \
     --dtype=float16 \
-    --device=xpu \
     --enforce-eager \
     --port 8000 \
     --host 0.0.0.0 \
@@ -2412,17 +2421,20 @@ cd /llm
 python3 -m vllm.entrypoints.openai.api_server
 ```
 
+### 4.2 Out-of-memory while online quantization
+
+When the model size is very large, running FP8 online quantization may cause out-of-memory errors.
+
+To avoid this issue, set the following environment variable before starting the service:
+
+```bash
+export VLLM_OFFLOAD_WEIGHTS_BEFORE_QUANT=1
+```
+
 
 ## 5. Performance tuning
 
-To maximize performance, configure the following environment variables inside the container:
-
-```bash
-unset TRITON_XPU_PROFILE
-export VLLM_OFFLOAD_WEIGHTS_BEFORE_QUANT=0
-```
-
-In addition, you can optimize CPU affinity based on the GPU–NUMA topology.
+To improve performance, you can optimize CPU affinity based on the GPU–NUMA topology.
 
 For example, if your process uses two GPUs that are both connected to NUMA node 0, you can use lscpu to identify the CPU cores associated with that NUMA node:
 
@@ -2442,8 +2454,3 @@ numactl -C 0-17 YOUR_COMMAND
 ```
 
 This ensures that the CPU threads serving your GPUs remain on the optimal NUMA node, reducing memory access latency and improving throughput.
-
-
-
-
-
