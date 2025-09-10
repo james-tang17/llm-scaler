@@ -110,6 +110,8 @@ CMD ["bash", "-c", "source /root/.bashrc && exec bash"]
 # ======== OpenAI Serving Stage ========
 FROM vllm-base AS vllm-openai
 
+COPY ./examples/offline_inference.py /llm/
+
 ARG http_proxy
 ARG https_proxy
 
