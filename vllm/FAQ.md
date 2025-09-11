@@ -16,6 +16,7 @@
 - [How can I verify if the benchmark data from `platform_basic_evaluation.sh` is valid?](#how-can-i-verify-if-the-benchmark-data-from-platform_basic_evaluationsh-is-valid)
 
 ## Tools
+- [Why do I always see `2.5GT/s` PCIe link status in `lspci`](#why-do-i-always-see-2.5gt/s-pcie-link-status-in-lspci)
 - [Why can't I see `xpu-smi` in the `vllm` Docker image?](#why-cant-i-see-xpu-smi-in-the-vllm-docker-image)
 - [Why can't I see GPU utilization with `xpu-smi`?](#why-cant-i-see-gpu-utilization-with-xpu-smi)
 
@@ -99,6 +100,9 @@ These data points are collected from internal evaluations using an IntelÂ® XeonÂ
 ---
 
 # Tools
+
+## Why do I always see `2.5GT/s` PCIe link status in `lspci`
+It's an known issue but no real impact on GPU operation. Official explaination: https://www.intel.com/content/www/us/en/support/articles/000094587/graphics.html
 
 ## Why can't I see `xpu-smi` in the `vllm` Docker image?
 
