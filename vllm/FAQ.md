@@ -16,7 +16,7 @@
 - [How can I verify if the benchmark data from `platform_basic_evaluation.sh` is valid?](#how-can-i-verify-if-the-benchmark-data-from-platform_basic_evaluationsh-is-valid)
 
 ## Tools
-- [Why do I always see `2.5GT/s` PCIe link status in `lspci`](#why-do-i-always-see-2.5gts-pcie-link-status-in-lspci)
+- [Why do I always see `2.5GT/s` PCIe link status in `lspci`](#why-do-i-always-see-25gts-pcie-link-status-in-lspci)
 - [Why can't I see `xpu-smi` in the `vllm` Docker image?](#why-cant-i-see-xpu-smi-in-the-vllm-docker-image)
 - [Why can't I see GPU utilization with `xpu-smi`?](#why-cant-i-see-gpu-utilization-with-xpu-smi)
 
