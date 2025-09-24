@@ -71,11 +71,11 @@ jobs:
     # - name: Setup runtime (example)
     #   uses: actions/setup-example@v1
 
-    - name: Clone vLLM and apply patch
-      run: |
-        git clone -b v0.8.3 https://github.com/vllm-project/vllm.git vllm-upstream
-        cd vllm-upstream
-        git apply ../vllm/patches/vllm_for_multi_arc.patch
+    # - name: Clone vLLM and apply patch
+    #   run: |
+    #     git clone -b v0.8.3 https://github.com/vllm-project/vllm.git vllm-upstream
+    #     cd vllm-upstream
+    #     git apply ../vllm/patches/vllm_for_multi_arc.patch
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
