@@ -7,8 +7,8 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 ## Table of Contents
 
 1. [Getting Started and Usage](#1-getting-started-and-usage)  
-   1.1 [Install Native Environment](#11-install-native-environment)  
-   1.2 [Pulling and Running the Platform Evaluation Docker Container](#12-pulling-and-running-the-platform-evaluation-docker-container)  
+   1.1 [Install Bare Metal Environment](#11-install-bare-metal-environment)  
+   1.2 [Run Platform Evaluation](#12-run-platform-evaluation)  
    1.3 [Pulling and Running the vllm Docker Container](#13-pulling-and-running-the-vllm-docker-container)  
    1.4 [Launching the Serving Service](#14-launching-the-serving-service)  
    1.5 [Benchmarking the Service](#15-benchmarking-the-service)  
@@ -31,131 +31,100 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
 
 ## 1. Getting Started and Usage
 
-Overall, we provide three offerings to setup the environment and run evaluation:
+We provide two offerings to setup the environment and run evaluation:
 
-- Bare Mental BKC Installation Script (native_bkc_setup.sh)  
-Linux kernel, GPU firmware and docker library setup
-
-- Platform Evaluation Docker Image (llm-scaler-platform)  
-GEMM/GPU Memory Bandwidth/P2P/1CCL benchmark
+- Offline Installer for Bare Metal Environment Setup  
+Maintained on Intel RDC website. It will include all necessary components such as Linux kernel, GPU firmware, graphics driver, tools, the update of system configuration and often used scripts without internet requirement. 
+This installer can run in either bare metal or docker environments. In docker environment, it will skip the installation of Linux kernel, GPU firmware and the update of system level configuration.
 
 - vllm Inference Docker Image (llm-scaler-vllm)  
-LLM inference evaluation
+Maintained on Dockerhub. It already uses above offline installer to align the base platform environment. Meanwhile includes the components for LLM inference such as vllm/IPEX.
 
-We provide two different Docker images, each designed for a distinct use case:
+Typically, users have below two use cases:
 
 | Use Case | Description | Required Steps |
 | -------- | ----------- | -------------- |
-| **Platform Evaluation** | For evaluating platform capabilities only, with no intention to run vLLM inference. | 1. Install **Ubuntu 25.04** <br> 2. Run the **bare-metal BKC installation script** <br> 3. Pull the **platform evaluation Docker image** from Docker Hub (everything is pre-installed, no additional setup required) |
-| **vLLM Inference Benchmark** | For running inference benchmarks based on vLLM/IPEX. | 1. Install **Ubuntu 25.04** <br> 2. Run the **bare-metal BKC installation script** <br> 3. Pull the **vLLM Docker image** from Docker Hub <br> 4. Download the target model <br> 5. Run **vLLM-based inference performance tests** |
+| **Platform Evaluation** | For evaluating platform capabilities only, with no intention to run vLLM inference. | 1. Install **Ubuntu 25.04** <br> 2. Download and run offline installer <br> 3. Run platform evaluation script after the installation in bare metal environment |
+| **vLLM Inference Benchmark** | For running inference benchmarks based on vLLM/IPEX. | 1. Install **Ubuntu 25.04** <br> 2. Download and run offline installer  <br> 3. Pull the **vLLM Docker image** from Docker Hub <br> 4. Download the target model <br> 5. Run **vLLM-based inference performance tests** |
 
-The platform evaluation Docker image is intended for ODM customers who primarily need a quick assessment of platform capabilities. This image only includes platform evaluation tools and is significantly smaller in size compared to the vLLM Docker image.
+Currently, we include the following features for basic platform evaluation such as GPU memory bandwidth, P2P/collective communication cross GPUs and GeMM (generic matrix multiply) compute.
 
-### 1.1 Install Native Environment
+** Note: Both offline installer and docker image are intended for demo purposes only and not intended for production use. For production, please refer to our docker file to generate your own image. **
+** [vllm docker file](https://github.com/intel/llm-scaler/blob/main/vllm/docker/Dockerfile) **
+** [platform_docker_file](https://github.com/intel/llm-scaler/blob/main/vllm/docker/Dockerfile.platform) **
+
+### 1.1 Install Bare Metal Environment
 
 First, install a standard Ubuntu 25.04
 - [Ubuntu 25.04 Desktop](https://releases.ubuntu.com/25.04/ubuntu-25.04-desktop-amd64.iso) (for Xeon-W)
 - [Ubuntu 25.04 Server](https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso) (for Xeon-SP).
 
-Then, update the proxy configuration in [native_bkc_setup.sh](https://github.com/intel/llm-scaler/blob/main/vllm/tools/native_bkc_setup.sh). 
+Download Offline Installer from Intel RDC webiste. This is public but you may need register an account to download.
+https://onekit.intel.com/#/kitupload/865019
 
-```bash
-export https_proxy=http://your-proxy.com:port
-export http_proxy=http://your-proxy.com:port
-export no_proxy=127.0.0.1,*.intel.com
-````
-
-Make sure your system has internet access since we need to update the Linux kernel, GPU firmware and install base docker environments.
-
-Switch to root user, run this script.
+Switch to root user, extract and installer and run installer script.
 
 ```bash
 sudo su -
-cd vllm/tools/
-chmod +x native_bkc_setup.sh
-./native_bkc_setup.sh
+cd the_path_of_multi-arc-bmg-offline-installer-x.x.x.x 
+./installer.sh
 ```` 
 
-If everything is ok, you can see below installation completion message. Depending on your network speed, the execution may require 5 mins or longer time. 
+If everything is ok, you can see below installation completion message. Then please reboot to apply changes.
 
 ```bash
-✅ [DONE] Environment setup complete. Please reboot your system to apply changes.
+[INFO] Intel Multi-ARC base platform installation complete.
+[INFO] Please reboot the system to apply changes.
+
+Tools installed: gemm / 1ccl / xpu-smi in /usr/bin
+level-zero-tests: ./tools/level-zero-tests
+Support scripts: ./scripts
+Installation log: ./install_log_20250921_191057.log
 ````
 
-### 1.2 Pulling and Running the Platform Evaluation Docker Container
+### 1.2 Run Platform Evaluation
 
-Platform docker image targets for GPU memory bandwidth, GEMM, P2P, collective communication benchmark. 
-
-To pull the image,
+After the reboot, go to /opt/intel/multi-arc directory, tools/scripts are there.
 
 ```bash
-docker pull intel/llm-scaler-platform:latest
+root@edgeaihost15:/home/edgeai/james/multi-arc-bmg-offline-installer-25.38.4.1# ls -l
+total 80
+drwxr-xr-x 4 edgeai edgeai  4096 Sep  5 18:32 base
+drwxr-xr-x 2 edgeai edgeai  4096 Sep 20 17:15 firmware
+drwxr-xr-x 6 edgeai edgeai  4096 Aug 28 05:46 gfxdrv
+-rwxr-xr-x 1 edgeai edgeai  6668 Sep  5 18:32 installer.sh
+-rw-r--r-- 1 root   root   28674 Sep 21 19:11 install_log_20250921_191057.log
+drwxr-xr-x 2 edgeai edgeai  4096 Aug 28 06:05 kernel
+drwxr-xr-x 2 edgeai edgeai  4096 Sep 20 17:14 oneapi
+-rw-r--r-- 1 edgeai edgeai   818 Sep  1 18:11 README.md
+drwxr-xr-x 4 edgeai edgeai  4096 Sep 21 19:23 results
+drwxr-xr-x 7 edgeai edgeai  4096 Aug 28 06:25 scripts
+drwxr-xr-x 6 edgeai edgeai  4096 Sep 20 17:14 tools
+-rw-r--r-- 1 edgeai edgeai    94 Sep  1 18:10 VERSION
 ````
 
-Then, run the container with below script. IMAGE_NAME is the container name you just pull.
-HOST_DIR is the directory you want to mount into the docker.
+Please read the README.md firstly to understand all of our offerings. Then your may use scripts/evaluation/platform_basic_evaluation.sh
+to perform a quick evaluation with report under results. We also provide a reference perf under results/
 
 ```bash
-IMAGE_NAME="intel/llm-scaler-platform:latest"
-HOST_DIR=""
-
-# Verify directory exists
-if [ ! -d "$HOST_DIR" ]; then
-  echo "Error: Directory '$HOST_DIR' does not exist."
-  exit 2
-fi
-
-# Run the container
-docker run -it \
-  --privileged \
-  --device=/dev/dri \
-  $(for dev in /dev/mei*; do echo --device $dev; done) \
-  --group-add video \
-  --cap-add=SYS_ADMIN \
-  --mount type=bind,source=/dev/dri/by-path,target=/dev/dri/by-path \
-  --mount type=bind,source=/sys,target=/sys \
-  --mount type=bind,source=/dev/bus,target=/dev/bus \
-  --mount type=bind,source=/dev/char,target=/dev/char \
-  --mount type=bind,source="$(realpath "$HOST_DIR")",target=/mnt/workdir \
-  "$IMAGE_NAME" \
-  bash
+root@edgeaihost15:/home/edgeai/james/multi-arc-bmg-offline-installer-25.38.4.1# ls results/ -la
+total 12
+drwxr-xr-x  2 edgeai edgeai 4096 Sep 21 20:18 .
+drwxr-xr-x 10 edgeai edgeai 4096 Sep 21 20:17 ..
+-rw-r--r--  1 edgeai edgeai  550 Sep 20 17:46 reference_perf.csv
 ````
 
-Once you enter the docker container, go to /opt/intel/multi-arc directory, collaterals/tools/scripts put there.
-
+When you meet issue requiring our support, you can use below script to get necesary information of your system.
 ```bash
-root@da47dbf0a2f4:/opt/intel/multi-arc/multi-arc-bmg-offline-installer-25.32.1.2# ls -l
-total 68
--rw-r--r-- 1 root root  695 Aug  7 03:21 01_RELEASE_NTOES.md
--rw-r--r-- 1 root root 8183 Aug  7 02:11 02_README.md
--rw-r--r-- 1 root root 1164 Aug  6 01:16 03_KNOWN_ISSUES.md
--rw-r--r-- 1 root root 2371 Aug  7 04:40 04_FAQ.md
-drwxr-xr-x 3 root root 4096 Aug  3 15:17 base
-drwxr-xr-x 2 root root 4096 Jul 29 23:31 firmware
-drwxr-xr-x 6 root root 4096 Aug  3 23:15 gfxdrv
--rwxr-xr-x 1 root root 5993 Aug  6 15:44 installer.sh
--rw-r--r-- 1 root root 9200 Aug  7 04:55 install_log_20250807_045158.log
-drwxr-xr-x 2 root root 4096 Aug  3 15:12 oneapi
-drwxr-xr-x 3 root root 4096 Aug  7 02:05 results
-drwxr-xr-x 6 root root 4096 Aug  3 23:42 scripts
-drwxr-xr-x 6 root root 4096 Aug  3 15:17 tools
+root@edgeaihost15:/home/edgeai/james/multi-arc-bmg-offline-installer-25.38.4.1# ls scripts/debug/collect_sysinfo.sh
+scripts/debug/collect_sysinfo.sh
 ````
 
-Please read the 02_README.md firstly to understand all of our offerings. Then your may use scripts/evaluation/platform_basic_evaluation.sh
-to perform a quick evaluation with report under results. We also provide a reference report under results/
-
+You can also check our FAQ and known issues for more details.
 ```bash
-root@da47dbf0a2f4:/opt/intel/multi-arc/multi-arc-bmg-offline-installer-25.32.1.2/results/20250807_100553# ls -la
-total 48
-drwxr-xr-x 2 root root  4096 Aug  7 02:10 .
-drwxr-xr-x 3 root root  4096 Aug  7 02:05 ..
--rw-r--r-- 1 root root  1967 Aug  7 02:08 allgather_outplace_128M.csv
--rw-r--r-- 1 root root  2034 Aug  7 02:08 allreduce_outplace_128M.csv
--rw-r--r-- 1 root root  1960 Aug  7 02:08 alltoall_outplace_128M.csv
--rw-r--r-- 1 root root 26541 Aug  7 02:08 test_log.txt
+https://github.com/intel/llm-scaler/blob/main/vllm/FAQ.md
+https://github.com/intel/llm-scaler/blob/main/vllm/KNOWN_ISSUES.md
 ````
-
-You can also check 03_KNOWN_ISSUE.md and 04_FAQ.md for more details.
 
 ### 1.3 Pulling and Running the vllm Docker Container
 
