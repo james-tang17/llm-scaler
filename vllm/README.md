@@ -49,9 +49,9 @@ Typically, users have below two use cases:
 
 Currently, we include the following features for basic platform evaluation such as GPU memory bandwidth, P2P/collective communication cross GPUs and GeMM (generic matrix multiply) compute.
 
-** Note: Both offline installer and docker image are intended for demo purposes only and not intended for production use. For production, please refer to our docker file to generate your own image. **
-** [vllm docker file](https://github.com/intel/llm-scaler/blob/main/vllm/docker/Dockerfile) **
-** [platform_docker_file](https://github.com/intel/llm-scaler/blob/main/vllm/docker/Dockerfile.platform) **
+**Note: Both offline installer and docker image are intended for demo purposes only and not intended for production use. For production, please refer to our docker file to generate your own image**
+- [vllm docker file](https://github.com/intel/llm-scaler/blob/main/vllm/docker/Dockerfile)
+- [platform_docker_file](https://github.com/intel/llm-scaler/blob/main/vllm/docker/Dockerfile.platform)
 
 ### 1.1 Install Bare Metal Environment
 
@@ -60,7 +60,7 @@ First, install a standard Ubuntu 25.04
 - [Ubuntu 25.04 Server](https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso) (for Xeon-SP).
 
 Download Offline Installer from Intel RDC webiste. This is public but you may need register an account to download.
-https://onekit.intel.com/#/kitupload/865019
+[RDC Download Link](https://cdrdv2.intel.com/v1/dl/getContent/865705/865702?filename=multi-arc-bmg-offline-installer-25.38.4.1.tar.xz)
 
 Switch to root user, extract and installer and run installer script.
 
