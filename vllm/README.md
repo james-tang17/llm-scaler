@@ -2085,7 +2085,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn \
 python3 -m vllm.entrypoints.openai.api_server \
     --model /llm/models/bge-reranker-base \
     --served-model-name bge-reranker-base \
-    --task classify \
+    --task score \
     --dtype=float16 \
     --enforce-eager \
     --port 8000 \
