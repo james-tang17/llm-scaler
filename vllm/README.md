@@ -2278,16 +2278,9 @@ TORCH_LLM_ALLREDUCE=1 VLLM_USE_V1=1  CCL_ZE_IPC_EXCHANGE=pidfd VLLM_ALLOW_LONG_M
 
 ---
 
-### 2.4.3 MinerU 2.5 Support
+### 2.4.3 MinerU 2.6 Support
 
-This guide shows how to launch the MinerU 2.5 model using the vLLM inference backend.
-
-#### Install MinerU Core
-
-First, install the core MinerU package:
-```bash
-pip install mineru[core]
-```
+This guide shows how to launch the MinerU 2.6 model using the vLLM inference backend.
 
 #### Start the MinerU Service
 
@@ -2307,7 +2300,10 @@ python3 -m vllm.entrypoints.openai.api_server \
   --trust-remote-code \
   --gpu-memory-util 0.85 \
   --no-enable-prefix-caching \
+  --max-num-batched-tokens=32768 \
+  --max-model-len=32768 \
   --block-size 64 \
+  --max-num-seqs 256 \
   --served-model-name MinerU \
   --tensor-parallel-size 1 \
   --pipeline-parallel-size 1 \
@@ -2327,6 +2323,31 @@ To verify mineru
 #mineru -p <input_path> -o <output_path> -b vlm-http-client -u http://127.0.0.1:8000
 mineru -p /llm/MinerU/demo/pdfs/small_ocr.pdf -o ./ -b vlm-http-client -u http://127.0.0.1:8000
 ```
+
+2.Using by gradio
+
+```bash
+mineru-gradio --server-name 0.0.0.0 --server-port 8002
+```
+
+```python
+from gradio_client import Client, handle_file
+
+client = Client("http://localhost:8002/")
+result = client.predict(
+    file_path=handle_file('/llm/MinerU/demo/pdfs/small_ocr.pdf'),
+    end_pages=500,
+    is_ocr=False,
+    formula_enable=True,
+    table_enable=True,
+    language="ch",
+    backend="vlm-http-client",
+    url="http://localhost:8000",
+    api_name="/to_markdown"
+)
+print(result)
+```
+More details you can refer to gradio's [api guide](http://your_ip:8002/?view=api)
 
 ---
 
@@ -2362,7 +2383,7 @@ python3 -m vllm.entrypoints.openai.api_server \
 
 After starting the vLLM service, you can follow this link to use it
 
-#### [Qwen2.5-Omni input](https://github.com/QwenLM/Qwen2.5-Omni?tab=readme-ov-file#vllm-serve-usage)
+#### [Qwen-Omni input](https://github.com/QwenLM/Qwen2.5-Omni?tab=readme-ov-file#vllm-serve-usage)
 
 ```bash
 curl http://localhost:8000/v1/chat/completions \
@@ -2383,6 +2404,25 @@ An example responce is listed below:
 ```json
 {"id":"chatcmpl-xxx","object":"chat.completion","model":"Qwen2.5-Omni-7B","choices":[{"index":0,"message":{"role":"assistant","reasoning_content":null,"content":"The text in the image is \"TONGYI Qwen\". The sound in the audio is a cough.","tool_calls":[]},"logprobs":null,"finish_reason":"stop","stop_reason":null}],"usage":{"prompt_tokens":156,"total_tokens":180,"completion_tokens":24,"prompt_tokens_details":null},"prompt_logprobs":null,"kv_transfer_params":null}
 ```
+
+For video input, one can input like this:
+
+```bash
+curl -sS http://localhost:8000/v1/chat/completions   -H "Content-Type: application/json"   -d '{
+    "model": "Qwen3-Omni-30B-A3B-Instruct",
+    "temperature": 0,
+    "max_tokens": 1024,
+    "messages": [{
+      "role": "user",
+      "content": [
+        { "type": "text", "text": "Please describe the video comprehensively as much as possible." },
+        { "type": "video_url", "video_url": { "url": "https://raw.githubusercontent.com/EvolvingLMMs-Lab/sglang/dev/onevision_local/assets/jobs.mp4" } }
+      ]
+    }]
+  }'
+```
+
+
 ---
 
 ### 2.6 Data Parallelism (DP)
