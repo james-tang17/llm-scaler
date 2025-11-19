@@ -233,7 +233,7 @@ you can add the argument `--api-key xxx` for user authentication. Users are supp
 ### 1.5 Benchmarking the Service
 
 ```bash
-python3 /llm/vllm/benchmarks/benchmark_serving.py \
+vllm bench serve \
     --model /llm/models/DeepSeek-R1-Distill-Qwen-7B \
     --dataset-name random \
     --served-model-name DeepSeek-R1-Distill-Qwen-7B \
