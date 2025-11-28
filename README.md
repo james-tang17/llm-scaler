@@ -81,14 +81,14 @@ Please follow the instructions in the [Getting Started](vllm/README.md/#1-gettin
 `llm-scaler-omni` supports running image/voice/video generation etc. using ComfyUI, Xinference etc., featuring ComfyUI support (or `Omni Studio` mode) and Xinference support (or `Omni Serving` mode).  
 
 
-Please follow the instructions in the [Getting Started](./omni/README.md/#getting-started-with-omni-docker-image) to use `llm-scaler-omni`. 
+Please follow the instructions in the [Getting Started](omni/README.md/#getting-started-with-omni-docker-image) to use `llm-scaler-omni`. 
 
 
 ### Omni Demos
 
 | Qwen-Image | Multi B60 Wan2.2-T2V-14B |
 |------------|--------------------------|
-| ![Qwen Image Demo](omni/assets/demo_qwen_image.gif) | ![Wan2.2 T2V Demo](./omni/assets/demo_wan2.2_14b_i2v_multi_xpu.gif) |
+| ![Qwen Image Demo](./omni/assets/demo_qwen_image.gif) | ![Wan2.2 T2V Demo](./omni/assets/demo_wan2.2_14b_i2v_multi_xpu.gif) |
 
 
 ### Omni Studio (ComfyUI WebUI interaction)
