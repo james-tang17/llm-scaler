@@ -84,6 +84,13 @@ Please follow the instructions in the [Getting Started](vllm/README.md/#1-gettin
 Please follow the instructions in the [Getting Started](omni/README.md/#getting-started-with-omni-docker-image) to use `llm-scaler-omni`. 
 
 
+### Omni Demos
+
+| Qwen-Image | Multi B60 Wan2.2-T2V-14B |
+|------------|--------------------------|
+| ![Qwen Image Demo](./omni/assets/demo_qwen_image.gif) | ![Wan2.2 T2V Demo](./omni/assets/demo_wan2.2_14b_i2v_multi_xpu.gif) |
+
+
 ### Omni Studio (ComfyUI WebUI interaction)
 
 `Omni Stuido` supports Image Generation/Edit, Video Generation, Audio Generation, 3D Generation etc.  
