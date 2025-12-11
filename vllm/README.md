@@ -23,7 +23,8 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
    2.7 [Finding maximum Context Length](#27-finding-maximum-context-length)   
    2.8 [Multi-Modal Webui](#28-multi-modal-webui)  
    2.9 [Multi-node Distributed Deployment (PP/TP)](#29-multi-node-distributed-deployment-pptp)  
-   2.10 [BPE-Qwen Tokenizer](#210-bpe-qwen-tokenizer)
+   2.10 [BPE-Qwen Tokenizer](#210-bpe-qwen-tokenizer)  
+   2.11 [Load Balancer Solution](#211-load-balancer-solution)
 4. [Supported Models](#3-supported-models)  
 5. [Troubleshooting](#4-troubleshooting)
 6. [Performance tuning](#5-performance-tuning)
@@ -2445,6 +2446,12 @@ To enable data parallelism, add:
 --dp 2
 ```
 
+> **Note**
+> In addition to DP, a **load balancer–based deployment** is also supported as a drop-in alternative.
+> It provides slightly better performance in some scenarios and supports periodic instance rotation for long-running services.
+> See [Section 2.11 Load Balancer](#211-load-balancer-solution) for details.
+
+
 ---
 
 ### 2.7 Finding maximum Context Length
@@ -2740,6 +2747,83 @@ To enable it when launching the API server, add:
 ```bash
 --tokenizer-mode bpe-qwen
 ```
+
+---
+
+### 2.11 Load Balancer Solution
+
+This document describes a **load balancer–based deployment** for vLLM using Docker Compose.
+The load balancer routes traffic to multiple vLLM instances and exposes a single endpoint.
+
+Once started, send requests to:
+
+```
+http://localhost:8000
+```
+
+
+#### Use Case 1: Drop-in Alternative to DP
+
+Use this setup as a **drop-in alternative to DP**.
+
+Compared to DP, the load balancer approach provides **slightly better performance** in our testing and does not require any DP-specific configuration.
+
+Start the Load Balancer
+
+```bash
+cd vllm/docker-compose/load_balancer
+docker compose up -d
+```
+
+You can view logs in real time to monitor service status:
+
+```bash
+docker compose logs -f
+```
+
+After startup, all requests can be sent directly to:
+
+```
+http://localhost:8000
+```
+
+Stop / clean up:
+```
+docker compose down
+```
+
+#### Use Case 2: Periodic vLLM Rotation (Long-Running Service)
+
+Use this when running vLLM for a long time and you want to periodically restart instances (e.g., once per day) to avoid degradation, without service interruption.
+
+Start with Rotation Enabled
+
+```bash
+cd vllm/docker-compose/load_balancer
+chmod +x vllm_bootstrap_and_rotate.sh
+bash vllm_bootstrap_and_rotate.sh
+```
+
+You can view logs in real time to monitor service status:
+
+```bash
+docker compose logs -f
+```
+
+Once started, requests continue to be served at:
+
+```
+http://localhost:8000
+```
+
+To stop the rotation and clean up resources:
+
+```bash
+docker compose down
+crontab -l | grep -v "vllm_bootstrap_and_rotate.sh" | crontab -
+```
+
+> This will stop all containers and remove the cron job that triggers periodic rotation.
 
 ---
 
