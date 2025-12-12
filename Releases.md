@@ -2,6 +2,10 @@
 
 ## LLM-Scaler-vLLM
 
+### Latest Production Release 1.2
+* `intel/llm-scaler-vllm:1.2` [12/11/2025]: 
+    - Same image as intel/llm-scaler-vllm:0.10.2-b6
+
 ### Latest Beta Release 
 * `intel/llm-scaler-vllm:0.10.2-b6` [11/25/2025]:
     - MoE-Int4 support for Qwen3-30B-A3B
@@ -13,10 +17,6 @@
     - Fix minicpmv4.5 OOM issue and output error
     - Enable ERNIE-4.5-vl models
     - Enable Glyph based GLM-4.1V-9B-Base
-
-### 1.2 Release 
-* `intel/llm-scaler-vllm:1.2` [12/11/2025]: 
-    - Same image as intel/llm-scaler-vllm:0.10.2-b6 
 
 ### Previous Releases
 * `intel/llm-scaler-vllm:1.1-preview` [09/29/2025]:
