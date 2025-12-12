@@ -6,7 +6,7 @@
 * `intel/llm-scaler-vllm:1.2` [12/11/2025]: 
     - Same image as intel/llm-scaler-vllm:0.10.2-b6
 
-### Latest Beta Release 
+### Previous Releases
 * `intel/llm-scaler-vllm:0.10.2-b6` [11/25/2025]:
     - MoE-Int4 support for Qwen3-30B-A3B
     - Bpe-Qwen tokenizer support
@@ -18,7 +18,6 @@
     - Enable ERNIE-4.5-vl models
     - Enable Glyph based GLM-4.1V-9B-Base
 
-### Previous Releases
 * `intel/llm-scaler-vllm:1.1-preview` [09/29/2025]:
     - Same image as intel/llm-scaler-vllm:0.10.0-b2
 
