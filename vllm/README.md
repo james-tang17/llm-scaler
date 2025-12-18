@@ -2,6 +2,12 @@
 
 llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapted for Intel’s Multi GPU platform. This project enhances vLLM’s core architecture with Intel-specific performance optimizations, advanced features, and tailored support for customer use cases.
 
+Below is the support matrix for OS and Kernel. 
+| | 6.14.0 | 6.6 |
+| --- | ---| --- |
+| Ubuntu 25.04 (Desktop/Server) | Production Release | Evaluation Release |
+| Ubuntu 24.04 (Desktop/Server) | Evaluation Release | Evaluation Release |
+
 ---
 
 ## Table of Contents
@@ -22,7 +28,9 @@ llm-scaler-vllm is an extended and optimized version of vLLM, specifically adapt
    2.6 [Data Parallelism (DP)](#26-data-parallelism-dp)  
    2.7 [Finding maximum Context Length](#27-finding-maximum-context-length)   
    2.8 [Multi-Modal Webui](#28-multi-modal-webui)  
-   2.9 [Multi-node Distributed Deployment (PP/TP)](#29-multi-node-distributed-deployment-pptp)
+   2.9 [Multi-node Distributed Deployment (PP/TP)](#29-multi-node-distributed-deployment-pptp)  
+   2.10 [BPE-Qwen Tokenizer](#210-bpe-qwen-tokenizer)  
+   2.11 [Load Balancer Solution](#211-load-balancer-solution)
 4. [Supported Models](#3-supported-models)  
 5. [Troubleshooting](#4-troubleshooting)
 6. [Performance tuning](#5-performance-tuning)
@@ -55,7 +63,7 @@ Currently, we include the following features for basic platform evaluation such 
 
 ### 1.1 Install Bare Metal Environment
 
-First, install a standard Ubuntu 25.04
+First, install a standard Ubuntu 25.04 from the following link. 
 - [Ubuntu 25.04 Desktop](https://releases.ubuntu.com/25.04/ubuntu-25.04-desktop-amd64.iso) (for Xeon-W)
 - [Ubuntu 25.04 Server](https://releases.ubuntu.com/25.04/ubuntu-25.04-live-server-amd64.iso) (for Xeon-SP).
 
@@ -87,7 +95,7 @@ Installation log: ./install_log_20250921_191057.log
 After the reboot, go to /opt/intel/multi-arc directory, tools/scripts are there.
 
 ```bash
-root@edgeaihost15:/home/edgeai/james/multi-arc-bmg-offline-installer-25.38.4.1# ls -l
+root@edgeaihost15:/home/edgeai/multi-arc-bmg-offline-installer-25.38.4.1# ls -l
 total 80
 drwxr-xr-x 4 edgeai edgeai  4096 Sep  5 18:32 base
 drwxr-xr-x 2 edgeai edgeai  4096 Sep 20 17:15 firmware
@@ -107,7 +115,7 @@ Please read the README.md firstly to understand all of our offerings. Then your 
 to perform a quick evaluation with report under results. We also provide a reference perf under results/
 
 ```bash
-root@edgeaihost15:/home/edgeai/james/multi-arc-bmg-offline-installer-25.38.4.1# ls results/ -la
+root@edgeaihost15:/home/edgeai/multi-arc-bmg-offline-installer-25.38.4.1# ls results/ -la
 total 12
 drwxr-xr-x  2 edgeai edgeai 4096 Sep 21 20:18 .
 drwxr-xr-x 10 edgeai edgeai 4096 Sep 21 20:17 ..
@@ -116,7 +124,7 @@ drwxr-xr-x 10 edgeai edgeai 4096 Sep 21 20:17 ..
 
 When you meet issue requiring our support, you can use below script to get necesary information of your system.
 ```bash
-root@edgeaihost15:/home/edgeai/james/multi-arc-bmg-offline-installer-25.38.4.1# ls scripts/debug/collect_sysinfo.sh
+root@edgeaihost15:/home/edgeai/multi-arc-bmg-offline-installer-25.38.4.1# ls scripts/debug/collect_sysinfo.sh
 scripts/debug/collect_sysinfo.sh
 ````
 
@@ -130,12 +138,23 @@ https://github.com/intel/llm-scaler/blob/main/vllm/KNOWN_ISSUES.md
 
 First, pull the image for **Intel Arc B60 GPUs**:
 
+> **⚠️ Important**
+> Do **NOT** use the `latest` tag.
+> Instead, go to the **Releases** page and pull the *exact* beta version:
+> [https://github.com/intel/llm-scaler/blob/main/Releases.md/#latest-beta-release](https://github.com/intel/llm-scaler/blob/main/Releases.md/#latest-beta-release)
+>
+> This ensures you can precisely identify which version you are using.
+
+Example:
+
 ```bash
-docker pull intel/llm-scaler-vllm:latest
+# Replace <VERSION> with the latest beta release version from the link above
+docker pull intel/llm-scaler-vllm:<VERSION>
 ```
+
 **Notes:**
-* `intel/llm-scaler-vllm:1.0` → PV release image
-* `intel/llm-scaler-vllm:latest` → Latest development version
+* `intel/llm-scaler-vllm:1.0` → PV release image (stable)
+* `intel/llm-scaler-vllm:<VERSION>` → Recommended beta release (instead of `latest`)
 
 **Supplement: For Intel Arc A770 GPUs**
 ```bash
@@ -157,7 +176,7 @@ sudo docker run -td \
     -e https_proxy=$https_proxy \
     --shm-size="32g" \
     --entrypoint /bin/bash \
-    intel/llm-scaler-vllm:latest
+    intel/llm-scaler-vllm:<VERSION>
 ```
 
 Enter the container:
@@ -181,6 +200,26 @@ docker exec -it lsv-container bash
 This way, only the first GPU will be mapped into the Docker container.
 
 ---
+
+**Note — Intel oneAPI Environment**
+> How you start the container determines whether you need to manually source the Intel oneAPI environment (`source /opt/intel/oneapi/setvars.sh --force`):
+>
+> * **Interactive shell (`docker exec -it <container> bash`)**  
+>   `/root/.bashrc` already sources the oneAPI environment. No manual action needed.
+>
+> * **Docker Compose, overridden ENTRYPOINT, or direct `docker run` without interactive bash**  
+>   The environment is **not automatically loaded** if no shell is involved. Prepend your command with `source /opt/intel/oneapi/setvars.sh --force &&` to ensure proper GPU/XPU setup.
+>   
+>   ```yaml
+>   entrypoint: >
+>     entrypoint: source /opt/intel/oneapi/setvars.sh --force && python3 -m vllm.entrypoints.openai.api_server --model /llm/models/Qwen3-14B
+>   ```
+>
+> **Summary:** Automated starts require sourcing the oneAPI script; interactive bash sessions are ready to use.
+
+---
+
+
 
 ### 1.4 Launching the Serving Service
 
@@ -212,7 +251,7 @@ you can add the argument `--api-key xxx` for user authentication. Users are supp
 ### 1.5 Benchmarking the Service
 
 ```bash
-python3 /llm/vllm/benchmarks/benchmark_serving.py \
+vllm bench serve \
     --model /llm/models/DeepSeek-R1-Distill-Qwen-7B \
     --dataset-name random \
     --served-model-name DeepSeek-R1-Distill-Qwen-7B \
@@ -2016,6 +2055,7 @@ To use fp8 online quantization, simply replace `--quantization sym_int4` with:
 ```
 
 For those models that have been quantized before, such as AWQ-Int4/GPTQ-Int4/FP8 models, user do not need to specify the `--quantization` option.
+
 ---
 
 ### 2.3 Embedding and Reranker Model Support
@@ -2045,6 +2085,7 @@ python3 -m vllm.entrypoints.openai.api_server \
 
 ---
 After starting the vLLM service, you can follow this link to use it.
+
 #### [Embedding api](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#embeddings-api_1)
 
 ```bash
@@ -2065,7 +2106,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn \
 python3 -m vllm.entrypoints.openai.api_server \
     --model /llm/models/bge-reranker-base \
     --served-model-name bge-reranker-base \
-    --task classify \
+    --task score \
     --dtype=float16 \
     --enforce-eager \
     --port 8000 \
@@ -2157,6 +2198,9 @@ curl http://localhost:8000/v1/chat/completions \
     "max_tokens": 128
   }'
 ```
+
+if want to process image in server local, you can `"url": "file:/llm/models/test/1.jpg"` to test.
+
 ---
 
 ### 2.4.1 Audio Model Support [Deprecated]
@@ -2206,54 +2250,113 @@ curl http://localhost:8000/v1/audio/transcriptions \
 
 ### 2.4.2 dots.ocr Support
 
-Git clone the repo:
+To launch `dots.ocr`, follow the instructions in [1.4 Launching the Serving Service](#14-launching-the-serving-service), specifying the dots.ocr model, setting the model path to `/llm/models/dots.ocr`, the served-model-name to `model`, and the port to 8000.
+
+
+Once the service is running, you can use the method provided in the `dots.ocr` repository to launch Gradio for testing.
+
+---
+
+#### Clone the repository
 
 ```bash
-https://github.com/rednote-hilab/dots.ocr.git
+git clone https://github.com/rednote-hilab/dots.ocr.git
 cd dots.ocr
 ```
 
-Then, we should comment out the following two items in `requirements.txt`:
+#### Modify dependencies
 
-> flash-attn==2.8.0.post2 and accelerate  # because these two dependencies will require cuda
+Comment out the following two lines in `requirements.txt`:
 
-After commenting out these two elements, we can install the dependencies:
+```
+flash-attn==2.8.0.post2
+transformers  # These two dependencies can cause conflicts
+```
+
+Then install the dependencies:
 
 ```bash
-# Assuming you have installed torch/ipex etc.
-pip install --no-deps accelerate
 pip install -e .
 ```
 
-To download model weights in `dots.ocr`:
-```bash
-# In dots.ocr
-python3 tools/download_model.py
-
-# with modelscope
-python3 tools/download_model.py --type modelscope
-```
-
-In order to run dots.ocr, we will need to change codes in `./weights/DotsOCR`:
+#### Launch Gradio for testing
 
 ```bash
-cd ./weights/DotsOCR
-patch -p1 < YOUR_PATH/dots_ocr.patch
+python demo/demo_gradio.py
 ```
 
-Then, you're ready to start:
+---
+
+### 2.4.3 MinerU 2.6 Support
+
+This guide shows how to launch the MinerU 2.6 model using the vLLM inference backend.
+
+#### Start the MinerU Service
+
+Set up the environment variables and launch the vLLM API server:
+```bash
+export MODEL_NAME="/llm/models/MinerU2.5-2509-1.2B/"
+export VLLM_ALLOW_LONG_MAX_MODEL_LEN=1
+export VLLM_WORKER_MULTIPROC_METHOD=spawn
+export VLLM_OFFLOAD_WEIGHTS_BEFORE_QUANT=1
+
+python3 -m vllm.entrypoints.openai.api_server \
+  --model $MODEL_NAME \
+  --dtype float16 \
+  --enforce-eager \
+  --port 8000 \
+  --host 0.0.0.0 \
+  --trust-remote-code \
+  --gpu-memory-util 0.85 \
+  --no-enable-prefix-caching \
+  --max-num-batched-tokens=32768 \
+  --max-model-len=32768 \
+  --block-size 64 \
+  --max-num-seqs 256 \
+  --served-model-name MinerU \
+  --tensor-parallel-size 1 \
+  --pipeline-parallel-size 1 \
+  --logits-processors mineru_vl_utils:MinerULogitsProcessor
+```
+
+> **💡 Notes**
+>
+> - `--logits-processors mineru_vl_utils:MinerULogitsProcessor` enables MinerU’s custom post-processing logic.
+
+
+
+#### Run the demo
+To verify mineru
 
 ```bash
-export hf_model_path=./weights/DotsOCR  # Path to your downloaded model weights, Please use a directory name without periods (e.g., `DotsOCR` instead of `dots.ocr`) for the model save path. This is a temporary workaround pending our integration with Transformers.
-export PYTHONPATH=$(dirname "$hf_model_path"):$PYTHONPATH
-sed -i '/^from vllm\.version import __version__ as VLLM_VERSION$/a\
-from DotsOCR import modeling_dots_ocr_vllm' /usr/local/lib/python3.12/dist-packages/vllm-0.10.1.dev0+g6d8d0a24c.d20250825.xpu-py3.12-linux-x86_64.egg/vllm/entrypoints/openai/api_server.py  
-# If you downloaded model weights by yourself, please replace `DotsOCR` by your model saved directory name, and remember to use a directory name without periods (e.g., `DotsOCR` instead of `dots.ocr`) 
-
-# Start the service:
-TORCH_LLM_ALLREDUCE=1 VLLM_USE_V1=1  CCL_ZE_IPC_EXCHANGE=pidfd VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 VLLM_WORKER_MULTIPROC_METHOD=spawn python3 -m vllm.entrypoints.openai.api_server --model YOUR_DOTSOCR_PATH --enforce-eager --host 0.0.0.0 --trust-remote-code --disable-sliding-window --gpu-memory-util=0.8 --no-enable-prefix-caching --max-num-batched-tokens=8192  --disable-log-requests  --max-model-len=40000 --block-size 64 -tp=1 --port 8000 --served-model-name DotsOCR --chat-template-content-format string --dtype bfloat16
+#mineru -p <input_path> -o <output_path> -b vlm-http-client -u http://127.0.0.1:8000
+mineru -p /llm/MinerU/demo/pdfs/small_ocr.pdf -o ./ -b vlm-http-client -u http://127.0.0.1:8000
 ```
 
+2.Using by gradio
+
+```bash
+mineru-gradio --server-name 0.0.0.0 --server-port 8002
+```
+
+```python
+from gradio_client import Client, handle_file
+
+client = Client("http://localhost:8002/")
+result = client.predict(
+    file_path=handle_file('/llm/MinerU/demo/pdfs/small_ocr.pdf'),
+    end_pages=500,
+    is_ocr=False,
+    formula_enable=True,
+    table_enable=True,
+    language="ch",
+    backend="vlm-http-client",
+    url="http://localhost:8000",
+    api_name="/to_markdown"
+)
+print(result)
+```
+More details you can refer to gradio's [api guide](http://your_ip:8002/?view=api)
 
 ---
 
@@ -2289,7 +2392,7 @@ python3 -m vllm.entrypoints.openai.api_server \
 
 After starting the vLLM service, you can follow this link to use it
 
-#### [Qwen2.5-Omni input](https://github.com/QwenLM/Qwen2.5-Omni?tab=readme-ov-file#vllm-serve-usage)
+#### [Qwen-Omni input](https://github.com/QwenLM/Qwen2.5-Omni?tab=readme-ov-file#vllm-serve-usage)
 
 ```bash
 curl http://localhost:8000/v1/chat/completions \
@@ -2310,6 +2413,25 @@ An example responce is listed below:
 ```json
 {"id":"chatcmpl-xxx","object":"chat.completion","model":"Qwen2.5-Omni-7B","choices":[{"index":0,"message":{"role":"assistant","reasoning_content":null,"content":"The text in the image is \"TONGYI Qwen\". The sound in the audio is a cough.","tool_calls":[]},"logprobs":null,"finish_reason":"stop","stop_reason":null}],"usage":{"prompt_tokens":156,"total_tokens":180,"completion_tokens":24,"prompt_tokens_details":null},"prompt_logprobs":null,"kv_transfer_params":null}
 ```
+
+For video input, one can input like this:
+
+```bash
+curl -sS http://localhost:8000/v1/chat/completions   -H "Content-Type: application/json"   -d '{
+    "model": "Qwen3-Omni-30B-A3B-Instruct",
+    "temperature": 0,
+    "max_tokens": 1024,
+    "messages": [{
+      "role": "user",
+      "content": [
+        { "type": "text", "text": "Please describe the video comprehensively as much as possible." },
+        { "type": "video_url", "video_url": { "url": "https://raw.githubusercontent.com/EvolvingLMMs-Lab/sglang/dev/onevision_local/assets/jobs.mp4" } }
+      ]
+    }]
+  }'
+```
+
+
 ---
 
 ### 2.6 Data Parallelism (DP)
@@ -2329,6 +2451,12 @@ To enable data parallelism, add:
 ```bash
 --dp 2
 ```
+
+> **Note**
+> In addition to DP, a **load balancer–based deployment** is also supported as a drop-in alternative.
+> It provides slightly better performance in some scenarios and supports periodic instance rotation for long-running services.
+> See [Section 2.11 Load Balancer](#211-load-balancer-solution) for details.
+
 
 ---
 
@@ -2605,51 +2733,176 @@ python3 -m vllm.entrypoints.openai.api_server \
     --distributed-executor-backend ray
 ```
 
----
+
 At this point, multi-node distributed inference with **PP + TP** is running, coordinated by **Ray** across Node-1 and Node-2.
+
+---
+
+
+### 2.10 BPE-Qwen Tokenizer
+
+We have integrated the **bpe-qwen tokenizer** to accelerate tokenization for Qwen models.
+
+**Note:** You need to install it first:
+```
+pip install bpe-qwen
+```
+
+To enable it when launching the API server, add:
+
+```bash
+--tokenizer-mode bpe-qwen
+```
+
+---
+
+### 2.11 Load Balancer Solution
+
+This document describes a **load balancer–based deployment** for vLLM using Docker Compose.
+The load balancer routes traffic to multiple vLLM instances and exposes a single endpoint.
+
+Once started, send requests to:
+
+```
+http://localhost:8000
+```
+
+
+#### Use Case 1: Drop-in Alternative to DP
+
+Use this setup as a **drop-in alternative to DP**.
+
+Compared to DP, the load balancer approach provides **slightly better performance** in our testing and does not require any DP-specific configuration.
+
+Start the Load Balancer
+
+```bash
+cd vllm/docker-compose/load_balancer
+docker compose up -d
+```
+
+You can view logs in real time to monitor service status:
+
+```bash
+docker compose logs -f
+```
+
+After startup, all requests can be sent directly to:
+
+```
+http://localhost:8000
+```
+
+Stop / clean up:
+```
+docker compose down
+```
+
+#### Use Case 2: Periodic vLLM Rotation (Long-Running Service)
+
+Use this when running vLLM for a long time and you want to periodically restart instances (e.g., once per day) to avoid degradation, without service interruption.
+
+Start with Rotation Enabled
+
+```bash
+cd vllm/docker-compose/load_balancer
+chmod +x vllm_bootstrap_and_rotate.sh
+bash vllm_bootstrap_and_rotate.sh
+```
+
+You can view logs in real time to monitor service status:
+
+```bash
+docker compose logs -f
+```
+
+Once started, requests continue to be served at:
+
+```
+http://localhost:8000
+```
+
+To stop the rotation and clean up resources:
+
+```bash
+docker compose down
+crontab -l | grep -v "vllm_bootstrap_and_rotate.sh" | crontab -
+```
+
+> This will stop all containers and remove the cron job that triggers periodic rotation.
 
 ---
 
 ## 3. Supported Models
 
-| Model Name        | Category         | Notes                          |
-|-------------------|------------------|---------------------------------|
-|       DeepSeek-R1-0528-Qwen3-8B   |        language model             |                                 |
-|       DeepSeek-R1-Distill-1.5B/7B/8B/14B/32B/70B             |         language model  |                |
-|       Qwen3-8B/14B/32B            |        language model             |                                 |
-|       DeepSeek-V2-Lite            |        language model             | export VLLM_MLA_DISABLE=1       |
-|       QwQ-32B                     |        language model             |                                 |
-|       Ministral-8B                |        language model             |                                 |
-|       Mixtral-8x7B                |        language model             |                                 |
-|       Llama3.1-8B/Llama3.1-70B    |        language model             |                                 |
-|       Baichuan2-7B/13B            |        language model             |       with chat_template        |
-|       codegeex4-all-9b            |        language model             |       with chat_template        |
-|       DeepSeek-Coder-33B          |        language model             |                                 |
-|       GLM-4-0414-9B/32B           |        language model             |                                 |
-|       Seed-OSS-36B-Instruct       |        language model             |                                 |
-|       Hunyuan-0.5B/7B-Instruct    |        language model             |  follow the guide in [here](#31-how-to-use-hunyuan-7b-instruct)   |
-|Qwen3 30B-A3B/Coder-30B-A3B-Instruct|       language MOE model         |                                 |
-|       GLM-4.5-Air                 |        language MOE model         |                                 |
-|       Qwen2-VL-7B-Instruct        |        multimodal model           |                                 |
-|       MiniCPM-V-2.6               |        multimodal model           | use bf16 to avoid nan error     |
-|       MiniCPM-V-4                 |        multimodal model           | use bf16 to avoid nan error     |
-|       MiniCPM-V-4.5               |        multimodal model           |                                 |
-|       InternVL2-8B                |        multimodal model           |                                 |
-|       InternVL3-8B                |        multimodal model           |                                 |
-|       InternVL3_5-8B              |        multimodal model           |                                 |
-|       InternVL3_5-30B-A3B         |        multimodal MOE model       |                                 |
-|       GLM-4.1V-Thinking           |        multimodal model           |                                 |
-|       dots.ocr                    |        multimodal model           |                                 |
-|       Qwen2.5-VL 7B/32B/72B       |        multimodal model           | pip install transformers==4.52.4         |
-|       UI-TARS-7B-DPO              |        multimodal model           | pip install transformers==4.49.0         |
-|       Gemma-3-12B                 |        multimodal model           | only can run bf16 with no quantization   |
-|       GLM-4V-9B                   |        multimodal model           | with --hf-overrides and chat_template    |
-|       Qwen2.5-Omni-7B             |        omni model                 | pip install librosa soundfile            |
-|       whisper-medium/large-v3-turb|        audio model                | pip install transformers==4.52.4 librosa |
-|       Qwen3-Embedding             |        Embedding                  |                                 |
-|      bge-large,bge-m3,bce-base-v1 |        Embedding                  |                                 |
-|       Qwen3-Reranker              |        Rerank                     |                                 |
-|       bge-reranker-large, bge-reranker-v2-m3 |  Rerank                |                                 |
+
+| Category             | Model Name                                 | FP16 | Dynamic Online FP8 | Dynamic Online Int4 | MXFP4 | Notes                     |
+|----------------------|--------------------------------------------|------|--------------------|----------------------|-------|---------------------------|
+| Language Model       | openai/gpt-oss-20b                         |      |                    |                      |   ✅   |                           |
+| Language Model       | openai/gpt-oss-120b                        |      |                    |                      |   ✅   |                           |
+| Language Model       | deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B  |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | deepseek-ai/DeepSeek-R1-Distill-Qwen-7B    |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | deepseek-ai/DeepSeek-R1-Distill-Llama-8B   |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | deepseek-ai/DeepSeek-R1-Distill-Qwen-14B   |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | deepseek-ai/DeepSeek-R1-Distill-Qwen-32B   |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | deepseek-ai/DeepSeek-R1-Distill-Llama-70B  |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | deepseek-ai/DeepSeek-R1-0528-Qwen3-8B      |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | deepseek-ai/DeepSeek-V2-Lite               |  ✅  |         ✅         |                      |       | export VLLM_MLA_DISABLE=1 |
+| Language Model       | deepseek-ai/deepseek-coder-33b-instruct    |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | Qwen/Qwen3-8B                              |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | Qwen/Qwen3-14B                             |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | Qwen/Qwen3-32B                             |  ✅  |         ✅         |          ✅          |       |                           |
+| Language MOE Model   | Qwen/Qwen3-30B-A3B                         |  ✅  |         ✅         |          ✅          |       |                           |
+| Language MOE Model   | Qwen/Qwen3-235B-A22B                       |      |         ✅         |                      |       |                           |
+| Language MOE Model   | Qwen/Qwen3-Coder-30B-A3B-Instruct          |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | Qwen/QwQ-32B                               |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | mistralai/Ministral-8B-Instruct-2410       |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | mistralai/Mixtral-8x7B-Instruct-v0.1       |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | meta-llama/Llama-3.1-8B                    |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | meta-llama/Llama-3.1-70B                   |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | baichuan-inc/Baichuan2-7B-Chat             |  ✅  |         ✅         |          ✅          |       | with chat_template        |
+| Language Model       | baichuan-inc/Baichuan2-13B-Chat            |  ✅  |         ✅         |          ✅          |       | with chat_template        |
+| Language Model       | THUDM/CodeGeex4-All-9B                     |  ✅  |         ✅         |          ✅          |       | with chat_template        |
+| Language Model       | zai-org/GLM-4-9B-0414                      |      |         ✅        |                      |       | use bfloat16 |
+| Language Model       | zai-org/GLM-4-32B-0414                     |      |         ✅        |                      |       | use bfloat16 |
+| Language MOE Model   | zai-org/GLM-4.5-Air                        |  ✅  |         ✅         |                      |       |                           |
+| Language Model       | ByteDance-Seed/Seed-OSS-36B-Instruct       |  ✅  |         ✅         |          ✅          |       |                           |
+| Language Model       | tencent/Hunyuan-0.5B-Instruct              |  ✅  |         ✅         |          ✅          |       |  follow the guide in [here](#31-how-to-use-hunyuan-7b-instruct)   |
+| Language Model       | tencent/Hunyuan-7B-Instruct                |  ✅  |         ✅         |          ✅          |       |  follow the guide in [here](#31-how-to-use-hunyuan-7b-instruct)   |
+| Multimodal Model     | Qwen/Qwen2-VL-7B-Instruct                  |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | Qwen/Qwen2.5-VL-7B-Instruct                |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | Qwen/Qwen2.5-VL-32B-Instruct               |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | Qwen/Qwen2.5-VL-72B-Instruct               |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | Qwen/Qwen3-VL-4B-Instruct                  |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | Qwen/Qwen3-VL-8B-Instruct                  |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal MOE Model | Qwen/Qwen3-VL-30B-A3B-Instruct             |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | openbmb/MiniCPM-V-2_6                      |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | openbmb/MiniCPM-V-4                        |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | openbmb/MiniCPM-V-4_5                      |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | OpenGVLab/InternVL2-8B                     |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | OpenGVLab/InternVL3-8B                     |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | OpenGVLab/InternVL3_5-8B                   |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal MOE Model | OpenGVLab/InternVL3_5-30B-A3B              |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | rednote-hilab/dots.ocr                     |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | ByteDance-Seed/UI-TARS-7B-DPO              |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | google/gemma-3-12b-it                      |      |         ✅         |                      |       |  use bfloat16  |
+| Multimodal Model     | THUDM/GLM-4v-9B                            |  ✅  |         ✅         |          ✅         |       |  with --hf-overrides and chat_template  |
+| Multimodal Model     | zai-org/GLM-4.1V-9B-Base                   |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | zai-org/GLM-4.1V-9B-Thinking               |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | zai-org/Glyph                              |  ✅  |         ✅         |          ✅          |       |                           |
+| Multimodal Model     | opendatalab/MinerU2.5-2509-1.2B            |  ✅  |         ✅         |          ✅          |       |                           |
+| omni                 | Qwen/Qwen2.5-Omni-7B                       |  ✅  |         ✅         |          ✅          |       |                           |
+| omni                 | Qwen/Qwen3-Omni-30B-A3B-Instruct           |  ✅  |         ✅         |          ✅          |       |                           |
+| audio                | openai/whisper-medium                      |  ✅  |         ✅         |          ✅          |       |                           |
+| audio                | openai/whisper-large-v3                    |  ✅  |         ✅         |          ✅          |       |                           |
+| Embedding Model      | Qwen/Qwen3-Embedding-8B                    |  ✅  |         ✅         |          ✅          |       |                           |
+| Embedding Model      | BAAI/bge-m3                                |  ✅  |         ✅         |          ✅          |       |                           |
+| Embedding Model      | BAAI/bge-large-en-v1.5                     |  ✅  |         ✅         |          ✅          |       |                           |
+| Reranker Model       | Qwen/Qwen3-Reranker-8B                     |  ✅  |         ✅         |          ✅          |       |                           |
+| Reranker Model       | BAAI/bge-reranker-large                    |  ✅  |         ✅         |          ✅          |       |                           |
+| Reranker Model       | BAAI/bge-reranker-v2-m3                    |  ✅  |         ✅         |          ✅          |       |                           |
+
+
 --- 
 
 ### 3.1 how to use Hunyuan-7B-Instruct 

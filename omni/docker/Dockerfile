@@ -11,6 +11,12 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib/python3.10/dist-packages/torc
 COPY ./patches/yunchang_for_multi_arc.patch /tmp/
 COPY ./patches/xdit_for_multi_arc.patch /tmp/
 COPY ./patches/raylight_for_multi_arc.patch /tmp/
+COPY ./patches/xinference_device_utils.patch /tmp/
+COPY ./patches/comfyui_for_multi_arc.patch /tmp/
+COPY ./patches/comfyui_voxcpm_for_xpu.patch /tmp/
+COPY ./patches/comfyui_hunyuan3d_for_xpu.patch /tmp/
+COPY ./patches/sglang_diffusion_for_multi_arc.patch /tmp/
+
 
 # Add Intel oneAPI repo and PPA for GPU support
 RUN wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
@@ -50,7 +56,8 @@ RUN wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRO
     cd /llm && \
     git clone https://github.com/comfyanonymous/ComfyUI.git && \
     cd ComfyUI && \
-    git checkout 72212fef660bcd7d9702fa52011d089c027a64d8 && \
+    git checkout f8b981ae9a5676311624bbafa636a1874db79459 && \
+    git apply /tmp/comfyui_for_multi_arc.patch && \
     pip install -r requirements.txt && \
     cd custom_nodes && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git comfyui-manager && \
@@ -60,19 +67,58 @@ RUN wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRO
     cd .. && \
     git clone https://github.com/komikndr/raylight.git && \
     cd raylight && \
-    git checkout 290c934cdd498b003fbf083e74e91ffc8edb961a && \
+    git checkout 6e27efc540c49fa82d2bb779959cd5ad76b5faf5 && \
     git apply /tmp/raylight_for_multi_arc.patch && \
+    pip install ray==2.49.2 && \
     pip install -r requirements.txt && \
     cd .. && \
     git clone https://github.com/yolain/ComfyUI-Easy-Use.git comfyui-easy-use && \
     cd comfyui-easy-use && \
     pip install -r requirements.txt && \
+    cd .. && \
+    git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git && \
+    cd comfyui_controlnet_aux && \
+    apt install libcairo2-dev pkg-config python3-dev -y && \
+    pip install -r requirements.txt && \
+    cd .. && \
+    git clone https://github.com/wildminder/ComfyUI-VoxCPM.git comfyui-voxcpm && \
+    cd comfyui-voxcpm && \
+    git checkout 044dd93c0effc9090fb279117de5db4cd90242a0 && \
+    git apply /tmp/comfyui_voxcpm_for_xpu.patch && \
+    pip install -r requirements.txt && \
+    cd .. && \
+    git clone https://github.com/billwuhao/ComfyUI_IndexTTS.git && \
+    cd ComfyUI_IndexTTS && \
+    pip install -r requirements.txt && \
 # Install Xinference
     pip install "xinference[transformers]" && \
+    patch /usr/local/lib/python3.10/dist-packages/xinference/device_utils.py < /tmp/xinference_device_utils.patch && \
     pip install kokoro Jinja2==3.1.6 jieba ordered-set pypinyin cn2an pypinyin-dict && \
+# Install SGlang Diffusion
+    cd /llm && \
+    git clone https://github.com/sgl-project/sglang.git && \
+    cd sglang && \
+    git checkout 236a7c237002250b148c79bd93780d870b8b50d2 && \
+    git apply /tmp/sglang_diffusion_for_multi_arc.patch && \
+    pip install -e "python[diffusion]" && \
+    pip install triton==3.5.0 && \
+    pip install pytorch-triton-xpu==3.5.0 --index-url https://download.pytorch.org/whl/xpu --force-reinstall && \
+    cd /llm && \
+    git clone https://github.com/sgl-project/sgl-kernel-xpu.git && \
+    cd sgl-kernel-xpu && \
+    pip install -v . && \
     # Clean
     rm -rf /tmp/*
+RUN cd /llm/ComfyUI/custom_nodes && \
+    git clone https://github.com/kijai/ComfyUI-KJNodes.git && \
+    cd ComfyUI-KJNodes && \
+    pip install -r requirements.txt
 
 COPY ./workflows/* /llm/ComfyUI/user/default/workflows/
+COPY ./example_inputs/* /llm/ComfyUI/input/
+COPY ./tools/* /llm/tools/
+COPY ./entrypoints/* /llm/entrypoints/
 
-WORKDIR /llm/ComfyUI
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+
+WORKDIR /llm/entrypoints
